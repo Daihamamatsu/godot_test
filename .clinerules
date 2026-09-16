@@ -1,0 +1,92 @@
+# godot_test(MarioLike)プロジェクト運用ルール
+
+本プロジェクトは Godot 4.7 で作る 2D プラットフォーマ(プロジェクト名 "MarioLike")です。
+外部アセット(画像・音声・フォント)を一切使わず、ビジュアルは Polygon2D などでプロシージャル描画、
+効果音はコードで生成するプロシージャル SFX(`Sfx` autoload)に統一します。
+
+## 環境
+
+- Godot 4.7.2 stable(Windows 64bit)
+  - エディタ: `G:\Godot_v4.7.2-stable_win64\Godot_v4.7.2-stable_win64.exe`
+  - コンソール版(ヘッドレス / スモークテスト用): `G:\Godot_v4.7.2-stable_win64\Godot_v4.7.2-stable_win64_console.exe`
+- シェルは Git Bash
+- GitHub: https://github.com/Daihamamatsu/godot_test(既定ブランチ `main`、gh CLI 認証済み)
+
+## 言語方針
+
+- コードのコメントは必ず日本語で書く
+  (既存の英語コメントは、該当箇所を触った際に日本語へ翻訳する。一括翻訳の PR は作らない)
+- コード内の識別子(変数名・関数名・クラス名など)は英語で書く
+- ゲーム内 UI 表示は現状の英語(SCORE / LIVES / READY? など)を維持する
+  (日本語化が必要な場合は別途 Issue として対応する)
+- ドキュメント(README など)は日本語で書く
+
+## 開発ワークフロー(必須)
+
+ファイルを変更する際は、必ず以下の手順を踏む。
+
+1. GitHub に Issue を作成する(変更内容と受け入れ基準を記述)
+2. main からブランチを作成する: `issue/N-キーワード`(N は Issue 番号、例: `issue/8-double-jump`)
+3. PR を発行する(本文に `Closes #N` で Issue を参照)
+
+追加の制約:
+
+- main ブランチへの直接コミットをしない
+- Issue 1 個 = PR 1 個。無関係な変更を混ぜ込まない
+- force push をしない
+- PR に修正が入った場合は、同じブランチに修正を積んで push する(新しいブランチを作らない)
+
+## コミットメッセージ規約
+
+- Conventional Commits の type + 日本語の説明文 + Issue 番号の形式にする
+- 例:
+  - `feat: ダブルジャンプ機能を追加 (Issue #8)`
+  - `fix: 敵のエッジ転向の誤判定を修正 (Issue #9)`
+  - `docs: README を追加 (Issue #10)`
+
+## 技術的制約
+
+- 画像・音声・フォントなどのアセットを追加しない。ビジュアルと音は常にプロシージャル生成
+  - 新しい効果音は `autoload/sfx.gd` にのみ追加し、`Sfx.play(id)` で再生する
+- GDScript のみ。C# / GDExtension / 外部プラグインは使用しない
+- 外部依存(addon / アセットパック / ライブラリ)を追加しない
+- Godot バージョンは 4.7.2 を固定する。バージョン変更・アップグレードは必ず事前に確認する
+- レンダリング方法は `mobile`(project.godot 設定)。変更は必ず事前に確認する
+- ファイル構成: シーンは `scenes/`、スクリプトは `scripts/`、autoload は `autoload/` に配置
+- 新しい入力操作は `project.godot` の [input] に定義する(既存: move_left / move_right / jump / restart)
+- ノード間の参照はグループ("player" / "enemy" / "coin")とシグナルを使う(直接パス参照を避ける)
+
+## Godot 4.7 API 注意(実測のハマりポイント)
+
+- 2D レイキャストは `get_world_2d().direct_space_state.intersect_ray(query)` を使う
+  - `PhysicsRayQueryParameters2D` のフラグは複数形: `collide_with_bodies` / `collide_with_areas`
+- `Label` に `outline_width` / `outline_size` の直接プロパティは存在しない
+  - テキストスタイル(フォント・色・アウトライン)は `LabelSettings` リソースで設定する(`label.label_settings`:
+    `font_size` / `font_color` / `outline_size` / `outline_color`)
+- ヘッドレス実行は必ず `--audio-driver Dummy` を付ける
+
+## 実行と検証(PR 前必須)
+
+ヘッドレススモークテストを実行し、すべてを満たすことを確認する。
+
+```bash
+/g/Godot_v4.7.2-stable_win64/Godot_v4.7.2-stable_win64_console.exe \
+  --headless --audio-driver Dummy --quit-after 300 res://scenes/main.tscn test
+```
+
+- 出力に SCRIPT ERROR / Parse Error / Failed to load が無い
+- `TEST [name]` 行がすべて PASS かつ `TEST SUMMARY: ALL PASS`(現状 7 チェック)
+- プロセスの終了コードが 0
+- 末尾の `test` 引数でテストモードが有効化される(main.gd 内のフレームベース自動チェック。完了後自動終了)
+- ゲームロジックを追加・変更したときは、テストステップ(`_run_test_step`)も同時に拡張する
+
+## Git 衛生
+
+- `.godot/` キャッシュはコミットしない(.gitignore で無視済み)
+- 一時的な調査スクリプト(tmp/ 等)は使用後に必ず削除し、コミットしない
+- 診断用の print(DIAG 等)を最終コードに残さない
+
+## ドキュメント
+
+- README.md は機能変更と同期して更新する
+- (README.md は未作成のため、初期作成は独立した Issue として別途対応する)
