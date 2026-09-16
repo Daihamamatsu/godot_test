@@ -363,7 +363,7 @@ func _run_test_step() -> void:
 	_test_frame += 1
 	match _test_frame:
 		5:
-			_check(InputMap.has_action("move_left") and InputMap.has_action("move_right") and InputMap.has_action("jump"), "input-map")
+			_check(_has_bound_key("move_left") and _has_bound_key("move_right") and _has_bound_key("jump") and _has_bound_key("restart"), "input-map")
 			_check(player != null and player.is_in_group("player"), "player-ready")
 			_check(get_tree().get_nodes_in_group("coin").size() >= 10, "coins-placed")
 			_check(get_tree().get_nodes_in_group("enemy").size() >= 3, "enemies-placed")
@@ -380,6 +380,17 @@ func _run_test_step() -> void:
 			_check(player.state == player.State.ALIVE, "player-alive")
 			print("TEST SUMMARY: %s" % ("ALL PASS" if _test_ok else "FAILED"))
 			get_tree().quit(0 if _test_ok else 1)
+
+
+# アクションに実キー(keycodeまたはphysical_keycodeがKEY_NONEでない)が
+# 少なくとも1つバインドされているか。バインド未定義の形式ミス検出用。
+func _has_bound_key(action: String) -> bool:
+	for event in InputMap.action_get_events(action):
+		if event is InputEventKey:
+			var key_event := event as InputEventKey
+			if key_event.keycode != KEY_NONE or key_event.physical_keycode != KEY_NONE:
+				return true
+	return false
 
 
 func _check(cond: bool, name: String) -> void:
