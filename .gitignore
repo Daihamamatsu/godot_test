@@ -1,0 +1,10 @@
+# Godot 4
+.godot/
+*.tmp
+
+# Imported translations (auto-generated)
+*.trans
+
+# OS
+.DS_Store
+Thumbs.db
