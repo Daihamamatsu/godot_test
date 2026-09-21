@@ -90,7 +90,7 @@ func _ready() -> void:
 	player.died.connect(_on_player_died)
 	var camera := player.get_node_or_null("Camera2D") as Camera2D
 	if camera != null:
-		midground_camera_origin = camera.global_position
+		midground_camera_origin = camera.get_screen_center_position()
 
 	_update_hud()
 	_intro()
@@ -427,7 +427,7 @@ func _update_midground_scroll() -> void:
 	var camera := player.get_node_or_null("Camera2D") as Camera2D
 	if camera == null:
 		return
-	var camera_delta := camera.global_position - midground_camera_origin
+	var camera_delta := camera.get_screen_center_position() - midground_camera_origin
 	# 中景の奥行き差は横スクロールだけに適用し、ジャンプでは木を上下させない。
 	midground_forest.position.x = camera_delta.x * (1.0 - MIDGROUND_SCROLL_FACTOR)
 
@@ -439,7 +439,7 @@ func _run_test_step() -> void:
 			_check(_has_bound_key("move_left") and _has_bound_key("move_right") and _has_bound_key("jump") and _has_bound_key("restart"), "input-map")
 			_check(player != null and player.is_in_group("player"), "player-ready")
 			_check(_midground_forest_ok(), "midground-forest")
-			_test_camera_origin = (player.get_node("Camera2D") as Camera2D).global_position
+			_test_camera_origin = (player.get_node("Camera2D") as Camera2D).get_screen_center_position()
 			_test_forest_origin = midground_forest.position
 			_test_forest_y_origin = midground_forest.position.y
 			_check(_player_walk_sprite_ok(), "player-sprite")
@@ -454,11 +454,17 @@ func _run_test_step() -> void:
 			_check(player.velocity.y < -100.0, "jump-velocity")
 			_check(player.global_position.x > 120.0, "move-right")
 			_check(absf(midground_forest.position.y - _test_forest_y_origin) < 0.01, "midground-jump-height")
+			_check(absf(midground_forest.position.x - _test_forest_origin.x) < 0.01, "midground-before-camera-scroll")
 		45:
 			Input.action_release("jump")
+		80:
 			Input.action_release("move_right")
+			player.global_position = Vector2(1200.0, SPAWN.y)
+			player.velocity = Vector2.ZERO
+		120:
+			_check(_camera_has_scrolled(), "camera-scroll-started")
 			_check(_midground_scroll_is_slower(), "midground-scroll")
-		70:
+		140:
 			_check(player.state == player.State.ALIVE, "player-alive")
 			print("TEST SUMMARY: %s" % ("ALL PASS" if _test_ok else "FAILED"))
 			get_tree().quit(0 if _test_ok else 1)
@@ -488,11 +494,19 @@ func _midground_scroll_is_slower() -> bool:
 	var camera := player.get_node_or_null("Camera2D") as Camera2D
 	if camera == null:
 		return false
-	var camera_delta := camera.global_position - _test_camera_origin
+	var camera_delta := camera.get_screen_center_position() - _test_camera_origin
 	var forest_delta := midground_forest.position - _test_forest_origin
 	if absf(camera_delta.x) < 1.0:
 		return false
 	return absf(forest_delta.x) < absf(camera_delta.x)
+
+
+# カメラの左端リミットを越えて、実際に画面がスクロールしたか確認する。
+func _camera_has_scrolled() -> bool:
+	var camera := player.get_node_or_null("Camera2D") as Camera2D
+	if camera == null:
+		return false
+	return absf(camera.get_screen_center_position().x - _test_camera_origin.x) >= 1.0
 
 
 # プレイヤーに歩行スプライト(AnimatedSprite2D・"walk" が 14 フレームでループ)があるか
