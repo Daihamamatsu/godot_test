@@ -1,18 +1,19 @@
 extends Node2D
-## Builds the level and drives game state (score, lives, HUD, win/lose).
+## レベルを構築し、ゲーム状態（スコア、残機、HUD、クリア・ゲームオーバー）を管理する。
 
 const SPAWN := Vector2(120, 479.5)
 const GROUND_TOP := 600.0
 const KILL_Y := 720.0
+const MIDGROUND_SCROLL_FACTOR := 0.72
 
-# [x_start, x_end] ground segments (top at GROUND_TOP).
+# [x_start, x_end] の地面区間（上面は GROUND_TOP）。
 const GROUND_SEGS: Array = [
 	[0, 1000],
 	[1140, 2100],
 	[2260, 3000],
 	[3340, 4400],
 ]
-# [x, y_top, width, height] solid blocks / floating platforms / stair steps.
+# [x, y_top, width, height] のブロック、浮遊足場、階段。
 const BLOCKS: Array = [
 	[1600, 540, 160, 60],   # raised block (coins on top)
 	[2400, 520, 200, 20],   # floating platform
@@ -43,6 +44,7 @@ const ENEMIES: Array = [
 const PLAYER_SCENE := preload("res://scenes/player.tscn")
 const ENEMY_SCENE := preload("res://scenes/enemy.tscn")
 const COIN_SCENE := preload("res://scenes/coin.tscn")
+const MIDGROUND_FOREST_TEXTURE := preload("res://assets/background/midground_forest.png")
 
 enum GameState { PLAYING, GAME_OVER, CLEAR }
 
@@ -58,10 +60,15 @@ var coin_label: Label
 var lives_label: Label
 var message_label: Label
 var sub_label: Label
+var midground_forest: Node2D
+var midground_camera_origin := Vector2.ZERO
 
 var _test_mode := false
 var _test_frame := 0
 var _test_ok := true
+var _test_camera_origin := Vector2.ZERO
+var _test_forest_origin := Vector2.ZERO
+var _test_forest_y_origin := 0.0
 
 
 func _ready() -> void:
@@ -82,12 +89,16 @@ func _ready() -> void:
 	world.add_child(player)
 	player.position = SPAWN
 	player.died.connect(_on_player_died)
+	var camera := player.get_node_or_null("Camera2D") as Camera2D
+	if camera != null:
+		midground_camera_origin = camera.get_screen_center_position()
+		_fit_midground_to_screen_bottom(camera)
 
 	_update_hud()
 	_intro()
 
 
-# ---------------------------------------------------------------- background
+# ---------------------------------------------------------------- 背景
 
 func _build_background() -> void:
 	var bg := Node2D.new()
@@ -101,6 +112,7 @@ func _build_background() -> void:
 	bg.add_child(sky)
 
 	var parallax := ParallaxBackground.new()
+	parallax.name = "ParallaxBackground"
 	bg.add_child(parallax)
 
 	var hills := ParallaxLayer.new()
@@ -112,7 +124,13 @@ func _build_background() -> void:
 		hill.color = Color(0.5, 0.78, 0.5)
 		hills.add_child(hill)
 
+	midground_forest = Node2D.new()
+	midground_forest.name = "MidgroundForest"
+	bg.add_child(midground_forest)
+	_add_midground_forest_tiles()
+
 	var clouds := ParallaxLayer.new()
+	clouds.name = "Clouds"
 	clouds.motion_scale = Vector2(0.3, 0.3)
 	parallax.add_child(clouds)
 	var cloud_specs: Array = [
@@ -126,7 +144,29 @@ func _build_background() -> void:
 		clouds.add_child(cloud)
 
 
-func _hill_poly(cx: float, base_y: float, w: float, h: float) -> PackedVector2Array:
+func _add_midground_forest_tiles() -> void:
+	var tile_width := float(MIDGROUND_FOREST_TEXTURE.get_width())
+	var tile_height := float(MIDGROUND_FOREST_TEXTURE.get_height())
+	var first_tile_x := -tile_width
+	var tile_count := 5
+	for i in tile_count:
+		var forest_tile := Sprite2D.new()
+		forest_tile.texture = MIDGROUND_FOREST_TEXTURE
+		forest_tile.position = Vector2(
+			first_tile_x + tile_width * (float(i) + 0.5),
+			GROUND_TOP - tile_height * 0.5
+		)
+		forest_tile.flip_h = i % 2 == 1
+		forest_tile.name = "ForestTile%d" % i
+		midground_forest.add_child(forest_tile)
+
+
+func _fit_midground_to_screen_bottom(camera: Camera2D) -> void:
+	var screen_bottom := camera.get_screen_center_position().y + get_viewport_rect().size.y * 0.5 / camera.zoom.y
+	midground_forest.position.y = screen_bottom - GROUND_TOP
+
+
+func _hill_poly(_cx: float, base_y: float, w: float, h: float) -> PackedVector2Array:
 	var pts := PackedVector2Array()
 	var n := 16
 	for i in n + 1:
@@ -157,7 +197,7 @@ func _circle_poly(cx: float, cy: float, r: float) -> PackedVector2Array:
 		pts.append(Vector2(cx + cos(a) * r, cy + sin(a) * r))
 	return pts
 
-# ------------------------------------------------------------------- terrain
+# ------------------------------------------------------------------- 地形
 
 func _build_terrain() -> void:
 	for seg in GROUND_SEGS:
@@ -355,8 +395,20 @@ func _process(_dt: float) -> void:
 	if Input.is_action_just_pressed("restart"):
 		get_tree().reload_current_scene()
 		return
+	_update_midground_scroll()
 	if _test_mode:
 		_run_test_step()
+
+
+func _update_midground_scroll() -> void:
+	if midground_forest == null or player == null:
+		return
+	var camera := player.get_node_or_null("Camera2D") as Camera2D
+	if camera == null:
+		return
+	var camera_delta := camera.get_screen_center_position() - midground_camera_origin
+	# 中景の奥行き差は横スクロールだけに適用し、ジャンプでは木を上下させない。
+	midground_forest.position.x = camera_delta.x * (1.0 - MIDGROUND_SCROLL_FACTOR)
 
 
 func _run_test_step() -> void:
@@ -365,6 +417,11 @@ func _run_test_step() -> void:
 		5:
 			_check(_has_bound_key("move_left") and _has_bound_key("move_right") and _has_bound_key("jump") and _has_bound_key("restart"), "input-map")
 			_check(player != null and player.is_in_group("player"), "player-ready")
+			_check(_midground_forest_ok(), "midground-forest")
+			_check(_midground_reaches_screen_bottom(), "midground-screen-bottom")
+			_test_camera_origin = (player.get_node("Camera2D") as Camera2D).get_screen_center_position()
+			_test_forest_origin = midground_forest.position
+			_test_forest_y_origin = midground_forest.position.y
 			_check(_player_walk_sprite_ok(), "player-sprite")
 			_check(_player_collision_ok(), "player-collision")
 			_check(_enemy_collision_ok(), "enemy-collision")
@@ -376,10 +433,18 @@ func _run_test_step() -> void:
 		34:
 			_check(player.velocity.y < -100.0, "jump-velocity")
 			_check(player.global_position.x > 120.0, "move-right")
+			_check(absf(midground_forest.position.y - _test_forest_y_origin) < 0.01, "midground-jump-height")
+			_check(absf(midground_forest.position.x - _test_forest_origin.x) < 0.01, "midground-before-camera-scroll")
 		45:
 			Input.action_release("jump")
+		80:
 			Input.action_release("move_right")
-		70:
+			player.global_position = Vector2(1200.0, SPAWN.y)
+			player.velocity = Vector2.ZERO
+		120:
+			_check(_camera_has_scrolled(), "camera-scroll-started")
+			_check(_midground_scroll_is_slower(), "midground-scroll")
+		140:
 			_check(player.state == player.State.ALIVE, "player-alive")
 			print("TEST SUMMARY: %s" % ("ALL PASS" if _test_ok else "FAILED"))
 			get_tree().quit(0 if _test_ok else 1)
@@ -394,6 +459,53 @@ func _has_bound_key(action: String) -> bool:
 			if key_event.keycode != KEY_NONE or key_event.physical_keycode != KEY_NONE:
 				return true
 	return false
+
+
+# 中景の森レイヤーが生成され、複数の木が配置されているか確認する。
+func _midground_forest_ok() -> bool:
+	var forest := get_node_or_null("Background/ParallaxBackground/MidgroundForest")
+	if forest == null:
+		forest = get_node_or_null("Background/MidgroundForest")
+	if not forest is Node2D or forest.get_child_count() < 4:
+		return false
+	var first_tile := forest.get_child(0) as Sprite2D
+	var second_tile := forest.get_child(1) as Sprite2D
+	return first_tile != null and second_tile != null \
+		and first_tile.texture == MIDGROUND_FOREST_TEXTURE \
+		and not first_tile.flip_h and second_tile.flip_h
+
+
+# 中景画像の下端が、現在の画面下端まで届いているか確認する。
+func _midground_reaches_screen_bottom() -> bool:
+	var camera := player.get_node_or_null("Camera2D") as Camera2D
+	if camera == null or midground_forest == null:
+		return false
+	var screen_bottom := camera.get_screen_center_position().y + get_viewport_rect().size.y * 0.5 / camera.zoom.y
+	var tile := midground_forest.get_child(0) as Sprite2D
+	if tile == null or tile.texture == null:
+		return false
+	var tile_bottom := midground_forest.global_position.y + tile.position.y + tile.texture.get_height() * 0.5
+	return absf(tile_bottom - screen_bottom) < 0.1
+
+
+# カメラが動いたとき、中景の移動量が近景より小さいか確認する。
+func _midground_scroll_is_slower() -> bool:
+	var camera := player.get_node_or_null("Camera2D") as Camera2D
+	if camera == null:
+		return false
+	var camera_delta := camera.get_screen_center_position() - _test_camera_origin
+	var forest_delta := midground_forest.position - _test_forest_origin
+	if absf(camera_delta.x) < 1.0:
+		return false
+	return absf(forest_delta.x) < absf(camera_delta.x)
+
+
+# カメラの左端リミットを越えて、実際に画面がスクロールしたか確認する。
+func _camera_has_scrolled() -> bool:
+	var camera := player.get_node_or_null("Camera2D") as Camera2D
+	if camera == null:
+		return false
+	return absf(camera.get_screen_center_position().x - _test_camera_origin.x) >= 1.0
 
 
 # プレイヤーに歩行スプライト(AnimatedSprite2D・"walk" が 14 フレームでループ)があるか
@@ -429,8 +541,8 @@ func _enemy_collision_ok() -> bool:
 	return false
 
 
-func _check(cond: bool, name: String) -> void:
-	print("TEST [%s] %s" % [name, "PASS" if cond else "FAIL"])
+func _check(cond: bool, test_name: String) -> void:
+	print("TEST [%s] %s" % [test_name, "PASS" if cond else "FAIL"])
 	if not cond:
 		_test_ok = false
 
