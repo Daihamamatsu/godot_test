@@ -1,5 +1,5 @@
 extends CharacterBody2D
-## Goomba-style enemy: patrols, turns at walls/ledges, dies when stomped.
+## グム系敵: パトロール移動、壁/崖の縁で転向、踏みつけられて倒れる。
 
 signal stomped
 
@@ -30,9 +30,10 @@ func _physics_process(dt: float) -> void:
 		dir = -dir
 		velocity.x = 0.0
 
-	# Turn around at cliff edges (probe the ground just ahead of us).
-	var from := global_position + Vector2(dir * 18.0, 0.0)
-	var to := from + Vector2(0.0, 44.0)
+	# 崖の縁で転向する(少し先の地面をレイキャストで探る)
+	# 敵カプセル(r48/h112)のつま先より外側・足元より十分に下へ張る
+	var from := global_position + Vector2(dir * 42.0, 0.0)
+	var to := from + Vector2(0.0, 92.0)
 	var query := PhysicsRayQueryParameters2D.create(from, to)
 	query.collide_with_bodies = true
 	query.collide_with_areas = false
@@ -44,9 +45,11 @@ func _physics_process(dt: float) -> void:
 func _on_hurt_body_entered(body: Node2D) -> void:
 	if dead or not body.is_in_group("player"):
 		return
-	var player_bottom := body.global_position.y + 21.0
-	var enemy_top := global_position.y - 14.0
-	if body.velocity.y > -50.0 and player_bottom < enemy_top + 12.0:
+	# 踏みつけ判定: プレイヤーの底面(カプセル高さ241/2=120.5)が
+	# 敵の頭上(視覚上 -56)から上側 48px 以内なら上面ヒットとする
+	var player_bottom := body.global_position.y + 121.0
+	var enemy_top := global_position.y - 56.0
+	if body.velocity.y > -50.0 and player_bottom < enemy_top + 48.0:
 		_get_stomped(body)
 	else:
 		if body.has_method("take_damage"):

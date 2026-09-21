@@ -75,7 +75,7 @@
 ```
 
 - 出力に SCRIPT ERROR / Parse Error / Failed to load が無い
-- `TEST [name]` 行がすべて PASS かつ `TEST SUMMARY: ALL PASS`(現状 7 チェック)
+- `TEST [name]` 行がすべて PASS かつ `TEST SUMMARY: ALL PASS`(現状 10 チェック)
 - プロセスの終了コードが 0
 - 末尾の `test` 引数でテストモードが有効化される(main.gd 内のフレームベース自動チェック。完了後自動終了)
 - ゲームロジックを追加・変更したときは、テストステップ(`_run_test_step`)も同時に拡張する

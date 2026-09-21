@@ -1,7 +1,7 @@
 extends Node2D
 ## Builds the level and drives game state (score, lives, HUD, win/lose).
 
-const SPAWN := Vector2(120, 556)
+const SPAWN := Vector2(120, 479.5)
 const GROUND_TOP := 600.0
 const KILL_Y := 720.0
 
@@ -17,9 +17,9 @@ const BLOCKS: Array = [
 	[1600, 540, 160, 60],   # raised block (coins on top)
 	[2400, 520, 200, 20],   # floating platform
 	[2700, 520, 200, 20],   # floating platform
-	[3000, 570, 40, 30],
-	[3040, 540, 40, 60],
-	[3080, 510, 40, 90],
+	[3000, 570, 80, 30],
+	[3080, 540, 80, 60],
+	[3160, 510, 80, 90],
 ]
 const COINS: Array = [
 	Vector2(360, 556), Vector2(430, 556), Vector2(500, 556),
@@ -33,11 +33,11 @@ const COINS: Array = [
 	Vector2(4000, 556),
 ]
 const ENEMIES: Array = [
-	Vector2(760, 586),
-	Vector2(1500, 586),
-	Vector2(1800, 586),
-	Vector2(2600, 586),
-	Vector2(3600, 586),
+	Vector2(760, 544),
+	Vector2(1500, 544),
+	Vector2(1820, 544),
+	Vector2(3400, 544),
+	Vector2(3900, 544),
 ]
 
 const PLAYER_SCENE := preload("res://scenes/player.tscn")
@@ -366,6 +366,8 @@ func _run_test_step() -> void:
 			_check(_has_bound_key("move_left") and _has_bound_key("move_right") and _has_bound_key("jump") and _has_bound_key("restart"), "input-map")
 			_check(player != null and player.is_in_group("player"), "player-ready")
 			_check(_player_walk_sprite_ok(), "player-sprite")
+			_check(_player_collision_ok(), "player-collision")
+			_check(_enemy_collision_ok(), "enemy-collision")
 			_check(get_tree().get_nodes_in_group("coin").size() >= 10, "coins-placed")
 			_check(get_tree().get_nodes_in_group("enemy").size() >= 3, "enemies-placed")
 			Input.action_press("move_right")
@@ -395,7 +397,7 @@ func _has_bound_key(action: String) -> bool:
 
 
 # プレイヤーに歩行スプライト(AnimatedSprite2D・"walk" が 14 フレームでループ)があるか
-# 表示が 2× (scale 0.25) 化済みで、スケールが横縦統一であることを併せて確認する
+# スケールが 1.0(256px 原寸表示)で横縦統一であることを併せて確認する
 func _player_walk_sprite_ok() -> bool:
 	var sprite := player.get_node_or_null("Visual/WalkSprite")
 	if sprite == null or not (sprite is AnimatedSprite2D):
@@ -404,8 +406,27 @@ func _player_walk_sprite_ok() -> bool:
 	if frames == null or not frames.has_animation("walk"):
 		return false
 	var sp := sprite as AnimatedSprite2D
-	var scale_ok := sp.scale.x == sp.scale.y and sp.scale.x > 0.2
+	var scale_ok := sp.scale.x == sp.scale.y and absf(sp.scale.x - 1.0) < 0.01
 	return frames.get_frame_count("walk") == 14 and frames.get_animation_loop("walk") and scale_ok
+
+
+# プレイヤーの衝突カプセルが拡大後(半径38.5・高さ241)のものであるか
+func _player_collision_ok() -> bool:
+	for node in player.find_children("", "CollisionShape2D", true):
+		var shape := (node as CollisionShape2D).shape
+		if shape is CapsuleShape2D and absf((shape as CapsuleShape2D).radius - 38.5) < 0.1 and absf((shape as CapsuleShape2D).height - 241.0) < 1.0:
+			return true
+	return false
+
+
+# 敵の衝突カプセルが 4 倍化後(半径48・高さ112)のものであるか
+func _enemy_collision_ok() -> bool:
+	for node in get_tree().get_nodes_in_group("enemy"):
+		for child in (node as Node2D).find_children("", "CollisionShape2D", true):
+			var shape := (child as CollisionShape2D).shape
+			if shape is CapsuleShape2D and absf((shape as CapsuleShape2D).radius - 48.0) < 0.1 and absf((shape as CapsuleShape2D).height - 112.0) < 1.0:
+				return true
+	return false
 
 
 func _check(cond: bool, name: String) -> void:
