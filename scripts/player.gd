@@ -18,6 +18,7 @@ const JUMP_BUFFER_TIME := 0.12
 const KILL_Y := 720.0
 
 @onready var visual: Node2D = $Visual
+@onready var walk_sprite: AnimatedSprite2D = $Visual/WalkSprite
 
 var state: int = State.ALIVE
 var facing := 1
@@ -108,6 +109,16 @@ func _physics_process(dt: float) -> void:
 	visual.scale = Vector2(facing * _stretch.x, _stretch.y)
 	visual.modulate.a = 0.35 if (invincible > 0.0 and fmod(invincible, 0.2) < 0.1) else 1.0
 
+	# 歩行アニメーション: 横移動中は "walk" ループ再生、停止時は停止して 0 フレームへ
+	if absf(velocity.x) > 10.0:
+		if walk_sprite.animation != &"walk":
+			walk_sprite.animation = &"walk"
+		walk_sprite.play()
+	else:
+		walk_sprite.stop()
+		walk_sprite.animation = &"walk"
+		walk_sprite.frame = 0
+
 	# Fell into a pit.
 	if global_position.y > KILL_Y:
 		_die(true)
@@ -117,6 +128,8 @@ func _die(from_pit: bool = false) -> void:
 	if state == State.DYING:
 		return
 	state = State.DYING
+	walk_sprite.stop()
+	walk_sprite.frame = 0
 	Sfx.play("hurt")
 	emit_signal("died")
 	if from_pit:
