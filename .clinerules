@@ -87,7 +87,10 @@
 - 検証ログは、直前に実行したコマンドが生成した最新ログだけを使用する。過去の `/tmp/` ログを使い回さない。
 - Godot の実行結果をログへ保存する場合は、実行直後に終了コードを変数へ退避し、ログを確認した後に元の終了コードを返す。`grep ... || true` で Godot 自体の終了コードを隠さない。
 - `Terminal closed while the command was running` と表示された場合は、ログの `TEST SUMMARY`、`EXIT_CODE`、エラー出力を確認し、ラッパーの表示だけで成功・失敗を判断しない。
+- コマンド実行ツールが内部コマンドの完了後に外側の終了コードを誤って 1 と報告する場合があるため、保存したログ内の `EXIT_CODE` と実際の出力を優先して判定する。
 - `git diff --check` は、今回の変更対象ファイルに限定して実行する。既存の未関連変更や `.import` ファイルの CRLF 警告を今回の変更エラーと混同しない。
+- 確認コマンドが長時間終了しない場合に備え、Git Bash の `timeout` で上限時間を設定する。タイムアウト発生時は成功扱いにせず、処理を分割して原因を確認する。
+- `git diff --check` を対象指定なしで実行しない。今回の変更対象が `.clinerules` だけなら `git diff --check -- .clinerules` のように対象を明示する。
 
 例:
 
@@ -106,7 +109,7 @@ exit "$EXIT_CODE"
 変更ファイルだけを確認する例:
 
 ```bash
-git diff --check -- scripts/main.gd README.md
+timeout 30s git diff --check -- scripts/main.gd README.md
 ```
 
 ## Git 衛生
