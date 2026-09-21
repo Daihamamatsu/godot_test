@@ -92,6 +92,7 @@ func _ready() -> void:
 	var camera := player.get_node_or_null("Camera2D") as Camera2D
 	if camera != null:
 		midground_camera_origin = camera.get_screen_center_position()
+		_fit_midground_to_screen_bottom(camera)
 
 	_update_hud()
 	_intro()
@@ -158,6 +159,11 @@ func _add_midground_forest_tiles() -> void:
 		forest_tile.flip_h = i % 2 == 1
 		forest_tile.name = "ForestTile%d" % i
 		midground_forest.add_child(forest_tile)
+
+
+func _fit_midground_to_screen_bottom(camera: Camera2D) -> void:
+	var screen_bottom := camera.get_screen_center_position().y + get_viewport_rect().size.y * 0.5 / camera.zoom.y
+	midground_forest.position.y = screen_bottom - GROUND_TOP
 
 
 func _hill_poly(_cx: float, base_y: float, w: float, h: float) -> PackedVector2Array:
@@ -412,6 +418,7 @@ func _run_test_step() -> void:
 			_check(_has_bound_key("move_left") and _has_bound_key("move_right") and _has_bound_key("jump") and _has_bound_key("restart"), "input-map")
 			_check(player != null and player.is_in_group("player"), "player-ready")
 			_check(_midground_forest_ok(), "midground-forest")
+			_check(_midground_reaches_screen_bottom(), "midground-screen-bottom")
 			_test_camera_origin = (player.get_node("Camera2D") as Camera2D).get_screen_center_position()
 			_test_forest_origin = midground_forest.position
 			_test_forest_y_origin = midground_forest.position.y
@@ -466,6 +473,19 @@ func _midground_forest_ok() -> bool:
 	return first_tile != null and second_tile != null \
 		and first_tile.texture == MIDGROUND_FOREST_TEXTURE \
 		and not first_tile.flip_h and second_tile.flip_h
+
+
+# 中景画像の下端が、現在の画面下端まで届いているか確認する。
+func _midground_reaches_screen_bottom() -> bool:
+	var camera := player.get_node_or_null("Camera2D") as Camera2D
+	if camera == null or midground_forest == null:
+		return false
+	var screen_bottom := camera.get_screen_center_position().y + get_viewport_rect().size.y * 0.5 / camera.zoom.y
+	var tile := midground_forest.get_child(0) as Sprite2D
+	if tile == null or tile.texture == null:
+		return false
+	var tile_bottom := midground_forest.global_position.y + tile.position.y + tile.texture.get_height() * 0.5
+	return absf(tile_bottom - screen_bottom) < 0.1
 
 
 # カメラが動いたとき、中景の移動量が近景より小さいか確認する。
