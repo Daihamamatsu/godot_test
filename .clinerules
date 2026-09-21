@@ -63,6 +63,7 @@
 - `Label` に `outline_width` / `outline_size` の直接プロパティは存在しない
   - テキストスタイル(フォント・色・アウトライン)は `LabelSettings` リソースで設定する(`label.label_settings`:
     `font_size` / `font_color` / `outline_size` / `outline_color`)
+- `InputEventKey` の入力プロパティは `keycode` / `physical_keycode` を使用する。`key_code` / `physical_key_code` などの誤った名前はエラーにならず、キーバインドがサイレントに無効化されるため、スモークテストの `_has_bound_key()` で各アクションに実キーが設定されていることを検証する
 - ヘッドレス実行は必ず `--audio-driver Dummy` を付ける
 
 ## 実行と検証(PR 前必須)
