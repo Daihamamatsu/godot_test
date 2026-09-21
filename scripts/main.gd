@@ -1,18 +1,18 @@
 extends Node2D
-## Builds the level and drives game state (score, lives, HUD, win/lose).
+## レベルを構築し、ゲーム状態（スコア、残機、HUD、クリア・ゲームオーバー）を管理する。
 
 const SPAWN := Vector2(120, 479.5)
 const GROUND_TOP := 600.0
 const KILL_Y := 720.0
 
-# [x_start, x_end] ground segments (top at GROUND_TOP).
+# [x_start, x_end] の地面区間（上面は GROUND_TOP）。
 const GROUND_SEGS: Array = [
 	[0, 1000],
 	[1140, 2100],
 	[2260, 3000],
 	[3340, 4400],
 ]
-# [x, y_top, width, height] solid blocks / floating platforms / stair steps.
+# [x, y_top, width, height] のブロック、浮遊足場、階段。
 const BLOCKS: Array = [
 	[1600, 540, 160, 60],   # raised block (coins on top)
 	[2400, 520, 200, 20],   # floating platform
@@ -87,7 +87,7 @@ func _ready() -> void:
 	_intro()
 
 
-# ---------------------------------------------------------------- background
+# ---------------------------------------------------------------- 背景
 
 func _build_background() -> void:
 	var bg := Node2D.new()
@@ -101,6 +101,7 @@ func _build_background() -> void:
 	bg.add_child(sky)
 
 	var parallax := ParallaxBackground.new()
+	parallax.name = "ParallaxBackground"
 	bg.add_child(parallax)
 
 	var hills := ParallaxLayer.new()
@@ -112,7 +113,23 @@ func _build_background() -> void:
 		hill.color = Color(0.5, 0.78, 0.5)
 		hills.add_child(hill)
 
+	var forest := ParallaxLayer.new()
+	forest.name = "MidgroundForest"
+	forest.motion_scale = Vector2(0.72, 0.72)
+	parallax.add_child(forest)
+	var tree_specs: Array = [
+		[120.0, 600.0, 0.82], [330.0, 600.0, 1.05], [570.0, 600.0, 0.7],
+		[820.0, 600.0, 1.18], [1080.0, 600.0, 0.9], [1320.0, 600.0, 0.76],
+		[1570.0, 600.0, 1.1], [1830.0, 600.0, 0.84], [2070.0, 600.0, 1.0],
+		[2340.0, 600.0, 0.72], [2590.0, 600.0, 1.16], [2840.0, 600.0, 0.88],
+		[3090.0, 600.0, 0.76], [3350.0, 600.0, 1.08], [3600.0, 600.0, 0.86],
+		[3860.0, 600.0, 1.12], [4110.0, 600.0, 0.78], [4330.0, 600.0, 1.0],
+	]
+	for spec in tree_specs:
+		_add_midground_tree(forest, float(spec[0]), float(spec[1]), float(spec[2]))
+
 	var clouds := ParallaxLayer.new()
+	clouds.name = "Clouds"
 	clouds.motion_scale = Vector2(0.3, 0.3)
 	parallax.add_child(clouds)
 	var cloud_specs: Array = [
@@ -124,6 +141,42 @@ func _build_background() -> void:
 		cloud.polygon = _cloud_poly(float(c[0]), float(c[1]), float(c[2]))
 		cloud.color = Color(1.0, 1.0, 1.0, 0.92)
 		clouds.add_child(cloud)
+
+
+func _add_midground_tree(parent: Node2D, x: float, base_y: float, scale: float) -> void:
+	var tree := Node2D.new()
+	tree.position = Vector2(x, base_y)
+	tree.scale = Vector2(scale, scale)
+	parent.add_child(tree)
+
+	var trunk := Polygon2D.new()
+	trunk.polygon = PackedVector2Array([
+		Vector2(-12, 0), Vector2(14, 0), Vector2(10, -150), Vector2(-8, -150)
+	])
+	trunk.color = Color(0.25, 0.22, 0.2, 0.9)
+	tree.add_child(trunk)
+
+	var foliage_back := Polygon2D.new()
+	foliage_back.polygon = _tree_canopy_poly(Vector2(0, -170), 64.0, 54.0)
+	foliage_back.color = Color(0.12, 0.38, 0.26, 0.88)
+	tree.add_child(foliage_back)
+
+	var foliage_front := Polygon2D.new()
+	foliage_front.polygon = _tree_canopy_poly(Vector2(0, -125), 58.0, 50.0)
+	foliage_front.color = Color(0.18, 0.5, 0.28, 0.92)
+	tree.add_child(foliage_front)
+
+
+func _tree_canopy_poly(center: Vector2, width: float, height: float) -> PackedVector2Array:
+	return PackedVector2Array([
+		center + Vector2(-width * 0.9, height * 0.25),
+		center + Vector2(-width * 0.72, -height * 0.2),
+		center + Vector2(-width * 0.35, -height * 0.58),
+		center + Vector2(0, -height),
+		center + Vector2(width * 0.35, -height * 0.58),
+		center + Vector2(width * 0.78, -height * 0.16),
+		center + Vector2(width * 0.92, height * 0.28),
+	])
 
 
 func _hill_poly(cx: float, base_y: float, w: float, h: float) -> PackedVector2Array:
@@ -157,7 +210,7 @@ func _circle_poly(cx: float, cy: float, r: float) -> PackedVector2Array:
 		pts.append(Vector2(cx + cos(a) * r, cy + sin(a) * r))
 	return pts
 
-# ------------------------------------------------------------------- terrain
+# ------------------------------------------------------------------- 地形
 
 func _build_terrain() -> void:
 	for seg in GROUND_SEGS:
@@ -365,6 +418,7 @@ func _run_test_step() -> void:
 		5:
 			_check(_has_bound_key("move_left") and _has_bound_key("move_right") and _has_bound_key("jump") and _has_bound_key("restart"), "input-map")
 			_check(player != null and player.is_in_group("player"), "player-ready")
+			_check(_midground_forest_ok(), "midground-forest")
 			_check(_player_walk_sprite_ok(), "player-sprite")
 			_check(_player_collision_ok(), "player-collision")
 			_check(_enemy_collision_ok(), "enemy-collision")
@@ -394,6 +448,12 @@ func _has_bound_key(action: String) -> bool:
 			if key_event.keycode != KEY_NONE or key_event.physical_keycode != KEY_NONE:
 				return true
 	return false
+
+
+# 中景の森レイヤーが生成され、複数の木が配置されているか確認する。
+func _midground_forest_ok() -> bool:
+	var forest := get_node_or_null("Background/ParallaxBackground/MidgroundForest")
+	return forest is ParallaxLayer and forest.get_child_count() >= 10
 
 
 # プレイヤーに歩行スプライト(AnimatedSprite2D・"walk" が 14 フレームでループ)があるか
