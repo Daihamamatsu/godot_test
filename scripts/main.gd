@@ -44,6 +44,7 @@ const ENEMIES: Array = [
 const PLAYER_SCENE := preload("res://scenes/player.tscn")
 const ENEMY_SCENE := preload("res://scenes/enemy.tscn")
 const COIN_SCENE := preload("res://scenes/coin.tscn")
+const MIDGROUND_FOREST_TEXTURE := preload("res://assets/background/midground_forest.png")
 
 enum GameState { PLAYING, GAME_OVER, CLEAR }
 
@@ -125,16 +126,7 @@ func _build_background() -> void:
 	midground_forest = Node2D.new()
 	midground_forest.name = "MidgroundForest"
 	bg.add_child(midground_forest)
-	var tree_specs: Array = [
-		[120.0, 600.0, 0.82], [330.0, 600.0, 1.05], [570.0, 600.0, 0.7],
-		[820.0, 600.0, 1.18], [1080.0, 600.0, 0.9], [1320.0, 600.0, 0.76],
-		[1570.0, 600.0, 1.1], [1830.0, 600.0, 0.84], [2070.0, 600.0, 1.0],
-		[2340.0, 600.0, 0.72], [2590.0, 600.0, 1.16], [2840.0, 600.0, 0.88],
-		[3090.0, 600.0, 0.76], [3350.0, 600.0, 1.08], [3600.0, 600.0, 0.86],
-		[3860.0, 600.0, 1.12], [4110.0, 600.0, 0.78], [4330.0, 600.0, 1.0],
-	]
-	for spec in tree_specs:
-		_add_midground_tree(midground_forest, float(spec[0]), float(spec[1]), float(spec[2]))
+	_add_midground_forest_tiles()
 
 	var clouds := ParallaxLayer.new()
 	clouds.name = "Clouds"
@@ -151,40 +143,21 @@ func _build_background() -> void:
 		clouds.add_child(cloud)
 
 
-func _add_midground_tree(parent: Node2D, x: float, base_y: float, tree_scale: float) -> void:
-	var tree := Node2D.new()
-	tree.position = Vector2(x, base_y)
-	tree.scale = Vector2(tree_scale, tree_scale)
-	parent.add_child(tree)
-
-	var trunk := Polygon2D.new()
-	trunk.polygon = PackedVector2Array([
-		Vector2(-12, 0), Vector2(14, 0), Vector2(10, -150), Vector2(-8, -150)
-	])
-	trunk.color = Color(0.25, 0.22, 0.2, 0.9)
-	tree.add_child(trunk)
-
-	var foliage_back := Polygon2D.new()
-	foliage_back.polygon = _tree_canopy_poly(Vector2(0, -170), 64.0, 54.0)
-	foliage_back.color = Color(0.12, 0.38, 0.26, 0.88)
-	tree.add_child(foliage_back)
-
-	var foliage_front := Polygon2D.new()
-	foliage_front.polygon = _tree_canopy_poly(Vector2(0, -125), 58.0, 50.0)
-	foliage_front.color = Color(0.18, 0.5, 0.28, 0.92)
-	tree.add_child(foliage_front)
-
-
-func _tree_canopy_poly(center: Vector2, width: float, height: float) -> PackedVector2Array:
-	return PackedVector2Array([
-		center + Vector2(-width * 0.9, height * 0.25),
-		center + Vector2(-width * 0.72, -height * 0.2),
-		center + Vector2(-width * 0.35, -height * 0.58),
-		center + Vector2(0, -height),
-		center + Vector2(width * 0.35, -height * 0.58),
-		center + Vector2(width * 0.78, -height * 0.16),
-		center + Vector2(width * 0.92, height * 0.28),
-	])
+func _add_midground_forest_tiles() -> void:
+	var tile_width := float(MIDGROUND_FOREST_TEXTURE.get_width())
+	var tile_height := float(MIDGROUND_FOREST_TEXTURE.get_height())
+	var first_tile_x := -tile_width
+	var tile_count := 5
+	for i in tile_count:
+		var forest_tile := Sprite2D.new()
+		forest_tile.texture = MIDGROUND_FOREST_TEXTURE
+		forest_tile.position = Vector2(
+			first_tile_x + tile_width * (float(i) + 0.5),
+			GROUND_TOP - tile_height * 0.5
+		)
+		forest_tile.flip_h = i % 2 == 1
+		forest_tile.name = "ForestTile%d" % i
+		midground_forest.add_child(forest_tile)
 
 
 func _hill_poly(_cx: float, base_y: float, w: float, h: float) -> PackedVector2Array:
@@ -486,7 +459,13 @@ func _midground_forest_ok() -> bool:
 	var forest := get_node_or_null("Background/ParallaxBackground/MidgroundForest")
 	if forest == null:
 		forest = get_node_or_null("Background/MidgroundForest")
-	return forest is Node2D and forest.get_child_count() >= 10
+	if not forest is Node2D or forest.get_child_count() < 4:
+		return false
+	var first_tile := forest.get_child(0) as Sprite2D
+	var second_tile := forest.get_child(1) as Sprite2D
+	return first_tile != null and second_tile != null \
+		and first_tile.texture == MIDGROUND_FOREST_TEXTURE \
+		and not first_tile.flip_h and second_tile.flip_h
 
 
 # カメラが動いたとき、中景の移動量が近景より小さいか確認する。
