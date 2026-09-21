@@ -395,6 +395,7 @@ func _has_bound_key(action: String) -> bool:
 
 
 # プレイヤーに歩行スプライト(AnimatedSprite2D・"walk" が 14 フレームでループ)があるか
+# 表示が 2× (scale 0.25) 化済みで、スケールが横縦統一であることを併せて確認する
 func _player_walk_sprite_ok() -> bool:
 	var sprite := player.get_node_or_null("Visual/WalkSprite")
 	if sprite == null or not (sprite is AnimatedSprite2D):
@@ -402,7 +403,9 @@ func _player_walk_sprite_ok() -> bool:
 	var frames := (sprite as AnimatedSprite2D).sprite_frames
 	if frames == null or not frames.has_animation("walk"):
 		return false
-	return frames.get_frame_count("walk") == 14 and frames.get_animation_loop("walk")
+	var sp := sprite as AnimatedSprite2D
+	var scale_ok := sp.scale.x == sp.scale.y and sp.scale.x > 0.2
+	return frames.get_frame_count("walk") == 14 and frames.get_animation_loop("walk") and scale_ok
 
 
 func _check(cond: bool, name: String) -> void:
