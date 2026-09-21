@@ -1,10 +1,73 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="Script" path="res://scripts/player.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_01.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_02.png" id="3"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_03.png" id="4"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_04.png" id="5"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_05.png" id="6"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_06.png" id="7"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_07.png" id="8"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_08.png" id="9"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_09.png" id="10"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_10.png" id="11"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_11.png" id="12"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_12.png" id="13"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_13.png" id="14"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_14.png" id="15"]
 
 [sub_resource type="CapsuleShape2D" id="body_shape"]
 radius = 12.0
-depth = 21.0
+
+[sub_resource type="SpriteFrames" id="walk_frames"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("2")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3")
+}, {
+"duration": 1.0,
+"texture": ExtResource("4")
+}, {
+"duration": 1.0,
+"texture": ExtResource("5")
+}, {
+"duration": 1.0,
+"texture": ExtResource("6")
+}, {
+"duration": 1.0,
+"texture": ExtResource("7")
+}, {
+"duration": 1.0,
+"texture": ExtResource("8")
+}, {
+"duration": 1.0,
+"texture": ExtResource("9")
+}, {
+"duration": 1.0,
+"texture": ExtResource("10")
+}, {
+"duration": 1.0,
+"texture": ExtResource("11")
+}, {
+"duration": 1.0,
+"texture": ExtResource("12")
+}, {
+"duration": 1.0,
+"texture": ExtResource("13")
+}, {
+"duration": 1.0,
+"texture": ExtResource("14")
+}, {
+"duration": 1.0,
+"texture": ExtResource("15")
+}],
+"loop": 1,
+"name": &"walk",
+"speed": 10.0
+}]
 
 [node name="Player" type="CharacterBody2D"]
 collision_layer = 2
@@ -26,46 +89,8 @@ limit_right = 4260
 
 [node name="Visual" type="Node2D" parent="."]
 
-[node name="Cap" type="Polygon2D" parent="Visual"]
-color = Color(0.83, 0.16, 0.12, 1)
-polygon = PackedVector2Array(-13, -21, 13, -21, 13, -13, -13, -13)
-
-[node name="Brim" type="Polygon2D" parent="Visual"]
-color = Color(0.72, 0.13, 0.1, 1)
-polygon = PackedVector2Array(8, -14, 21, -14, 21, -10, 8, -10)
-
-[node name="Face" type="Polygon2D" parent="Visual"]
-color = Color(1, 0.83, 0.62, 1)
-polygon = PackedVector2Array(-10, -13, 10, -13, 10, 1, -10, 1)
-
-[node name="Eye" type="Polygon2D" parent="Visual"]
-color = Color(0.1, 0.1, 0.15, 1)
-polygon = PackedVector2Array(2, -9, 5, -9, 5, -5, 2, -5)
-
-[node name="Mustache" type="Polygon2D" parent="Visual"]
-color = Color(0.45, 0.27, 0.12, 1)
-polygon = PackedVector2Array(-2, -1, 9, -1, 9, 2, -2, 2)
-
-[node name="Shirt" type="Polygon2D" parent="Visual"]
-color = Color(0.83, 0.16, 0.12, 1)
-polygon = PackedVector2Array(-11, 1, 11, 1, 11, 7, -11, 7)
-
-[node name="Overalls" type="Polygon2D" parent="Visual"]
-color = Color(0.18, 0.3, 0.72, 1)
-polygon = PackedVector2Array(-11, 7, 11, 7, 11, 21, -11, 21)
-
-[node name="BuckleL" type="Polygon2D" parent="Visual"]
-color = Color(1, 0.85, 0.25, 1)
-polygon = PackedVector2Array(-7, 9, -3, 9, -3, 13, -7, 13)
-
-[node name="BuckleR" type="Polygon2D" parent="Visual"]
-color = Color(1, 0.85, 0.25, 1)
-polygon = PackedVector2Array(3, 9, 7, 9, 7, 13, 3, 13)
-
-[node name="FootL" type="Polygon2D" parent="Visual"]
-color = Color(0.36, 0.2, 0.09, 1)
-polygon = PackedVector2Array(-12, 17, -1, 17, -1, 21, -12, 21)
-
-[node name="FootR" type="Polygon2D" parent="Visual"]
-color = Color(0.36, 0.2, 0.09, 1)
-polygon = PackedVector2Array(1, 17, 12, 17, 12, 21, 1, 21)
+[node name="WalkSprite" type="AnimatedSprite2D" parent="Visual"]
+sprite_frames = SubResource("walk_frames")
+animation = &"walk"
+scale = Vector2(0.125, 0.125)
+offset = Vector2(3, 0)

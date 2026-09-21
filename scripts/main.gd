@@ -365,6 +365,7 @@ func _run_test_step() -> void:
 		5:
 			_check(_has_bound_key("move_left") and _has_bound_key("move_right") and _has_bound_key("jump") and _has_bound_key("restart"), "input-map")
 			_check(player != null and player.is_in_group("player"), "player-ready")
+			_check(_player_walk_sprite_ok(), "player-sprite")
 			_check(get_tree().get_nodes_in_group("coin").size() >= 10, "coins-placed")
 			_check(get_tree().get_nodes_in_group("enemy").size() >= 3, "enemies-placed")
 			Input.action_press("move_right")
@@ -391,6 +392,17 @@ func _has_bound_key(action: String) -> bool:
 			if key_event.keycode != KEY_NONE or key_event.physical_keycode != KEY_NONE:
 				return true
 	return false
+
+
+# プレイヤーに歩行スプライト(AnimatedSprite2D・"walk" が 14 フレームでループ)があるか
+func _player_walk_sprite_ok() -> bool:
+	var sprite := player.get_node_or_null("Visual/WalkSprite")
+	if sprite == null or not (sprite is AnimatedSprite2D):
+		return false
+	var frames := (sprite as AnimatedSprite2D).sprite_frames
+	if frames == null or not frames.has_animation("walk"):
+		return false
+	return frames.get_frame_count("walk") == 14 and frames.get_animation_loop("walk")
 
 
 func _check(cond: bool, name: String) -> void:
