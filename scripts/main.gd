@@ -113,10 +113,9 @@ func _build_background() -> void:
 		hill.color = Color(0.5, 0.78, 0.5)
 		hills.add_child(hill)
 
-	var forest := ParallaxLayer.new()
+	var forest := Node2D.new()
 	forest.name = "MidgroundForest"
-	forest.motion_scale = Vector2(0.72, 0.72)
-	parallax.add_child(forest)
+	bg.add_child(forest)
 	var tree_specs: Array = [
 		[120.0, 600.0, 0.82], [330.0, 600.0, 1.05], [570.0, 600.0, 0.7],
 		[820.0, 600.0, 1.18], [1080.0, 600.0, 0.9], [1320.0, 600.0, 0.76],
@@ -143,10 +142,10 @@ func _build_background() -> void:
 		clouds.add_child(cloud)
 
 
-func _add_midground_tree(parent: Node2D, x: float, base_y: float, scale: float) -> void:
+func _add_midground_tree(parent: Node2D, x: float, base_y: float, tree_scale: float) -> void:
 	var tree := Node2D.new()
 	tree.position = Vector2(x, base_y)
-	tree.scale = Vector2(scale, scale)
+	tree.scale = Vector2(tree_scale, tree_scale)
 	parent.add_child(tree)
 
 	var trunk := Polygon2D.new()
@@ -179,7 +178,7 @@ func _tree_canopy_poly(center: Vector2, width: float, height: float) -> PackedVe
 	])
 
 
-func _hill_poly(cx: float, base_y: float, w: float, h: float) -> PackedVector2Array:
+func _hill_poly(_cx: float, base_y: float, w: float, h: float) -> PackedVector2Array:
 	var pts := PackedVector2Array()
 	var n := 16
 	for i in n + 1:
@@ -453,7 +452,9 @@ func _has_bound_key(action: String) -> bool:
 # 中景の森レイヤーが生成され、複数の木が配置されているか確認する。
 func _midground_forest_ok() -> bool:
 	var forest := get_node_or_null("Background/ParallaxBackground/MidgroundForest")
-	return forest is ParallaxLayer and forest.get_child_count() >= 10
+	if forest == null:
+		forest = get_node_or_null("Background/MidgroundForest")
+	return forest is Node2D and forest.get_child_count() >= 10
 
 
 # プレイヤーに歩行スプライト(AnimatedSprite2D・"walk" が 14 フレームでループ)があるか
@@ -489,8 +490,8 @@ func _enemy_collision_ok() -> bool:
 	return false
 
 
-func _check(cond: bool, name: String) -> void:
-	print("TEST [%s] %s" % [name, "PASS" if cond else "FAIL"])
+func _check(cond: bool, test_name: String) -> void:
+	print("TEST [%s] %s" % [test_name, "PASS" if cond else "FAIL"])
 	if not cond:
 		_test_ok = false
 
