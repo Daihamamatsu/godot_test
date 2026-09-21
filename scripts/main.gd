@@ -67,6 +67,7 @@ var _test_frame := 0
 var _test_ok := true
 var _test_camera_origin := Vector2.ZERO
 var _test_forest_origin := Vector2.ZERO
+var _test_forest_y_origin := 0.0
 
 
 func _ready() -> void:
@@ -427,7 +428,8 @@ func _update_midground_scroll() -> void:
 	if camera == null:
 		return
 	var camera_delta := camera.global_position - midground_camera_origin
-	midground_forest.position = camera_delta * (1.0 - MIDGROUND_SCROLL_FACTOR)
+	# 中景の奥行き差は横スクロールだけに適用し、ジャンプでは木を上下させない。
+	midground_forest.position.x = camera_delta.x * (1.0 - MIDGROUND_SCROLL_FACTOR)
 
 
 func _run_test_step() -> void:
@@ -439,6 +441,7 @@ func _run_test_step() -> void:
 			_check(_midground_forest_ok(), "midground-forest")
 			_test_camera_origin = (player.get_node("Camera2D") as Camera2D).global_position
 			_test_forest_origin = midground_forest.position
+			_test_forest_y_origin = midground_forest.position.y
 			_check(_player_walk_sprite_ok(), "player-sprite")
 			_check(_player_collision_ok(), "player-collision")
 			_check(_enemy_collision_ok(), "enemy-collision")
@@ -450,6 +453,7 @@ func _run_test_step() -> void:
 		34:
 			_check(player.velocity.y < -100.0, "jump-velocity")
 			_check(player.global_position.x > 120.0, "move-right")
+			_check(absf(midground_forest.position.y - _test_forest_y_origin) < 0.01, "midground-jump-height")
 		45:
 			Input.action_release("jump")
 			Input.action_release("move_right")
