@@ -58,6 +58,8 @@ var player: CharacterBody2D
 var score_label: Label
 var coin_label: Label
 var lives_label: Label
+var hp_bar: ProgressBar
+var hp_label: Label
 var message_label: Label
 var sub_label: Label
 var midground_forest: Node2D
@@ -89,6 +91,7 @@ func _ready() -> void:
 	world.add_child(player)
 	player.position = SPAWN
 	player.died.connect(_on_player_died)
+	player.hp_changed.connect(_on_player_hp_changed)
 	var camera := player.get_node_or_null("Camera2D") as Camera2D
 	if camera != null:
 		midground_camera_origin = camera.get_screen_center_position()
@@ -309,7 +312,7 @@ func _build_hud() -> void:
 
 	var bar := HBoxContainer.new()
 	bar.position = Vector2(16, 8)
-	bar.add_theme_constant_override("separation", 48)
+	bar.add_theme_constant_override("separation", 28)
 	hud.add_child(bar)
 
 	score_label = _make_label(22, Color(1, 1, 1, 0.95))
@@ -318,6 +321,20 @@ func _build_hud() -> void:
 	bar.add_child(coin_label)
 	lives_label = _make_label(22, Color(1, 0.5, 0.45, 0.95))
 	bar.add_child(lives_label)
+
+	var hp_title := _make_label(22, Color(1, 1, 1, 0.95))
+	hp_title.text = "HP"
+	bar.add_child(hp_title)
+	hp_bar = ProgressBar.new()
+	hp_bar.name = "PlayerHPBar"
+	hp_bar.custom_minimum_size = Vector2(220, 24)
+	hp_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	hp_bar.show_percentage = false
+	hp_bar.add_theme_stylebox_override("background", _make_bar_style(Color(0.12, 0.08, 0.08, 0.9), 6))
+	hp_bar.add_theme_stylebox_override("fill", _make_bar_style(Color(0.2, 0.82, 0.25), 6))
+	bar.add_child(hp_bar)
+	hp_label = _make_label(22, Color(1, 1, 1, 0.95))
+	bar.add_child(hp_label)
 
 	message_label = _make_label(56, Color(1, 0.9, 0.3))
 	message_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -361,10 +378,36 @@ func _make_label(size: int, color: Color) -> Label:
 	return label
 
 
+func _make_bar_style(color: Color, radius: int) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = color
+	style.corner_radius_top_left = radius
+	style.corner_radius_top_right = radius
+	style.corner_radius_bottom_left = radius
+	style.corner_radius_bottom_right = radius
+	return style
+
+
 func _update_hud() -> void:
 	score_label.text = "SCORE %06d" % score
 	coin_label.text = "COINS %d/%d" % [coin_count, COINS.size()]
 	lives_label.text = "LIVES x%d" % lives
+	if player != null:
+		_update_player_hp_hud(player.hp, player.MAX_HP)
+
+
+func _on_player_hp_changed(current_hp: int, maximum_hp: int) -> void:
+	_update_player_hp_hud(current_hp, maximum_hp)
+
+
+func _update_player_hp_hud(current_hp: int, maximum_hp: int) -> void:
+	if hp_bar == null or hp_label == null:
+		return
+	hp_bar.max_value = maximum_hp
+	hp_bar.value = current_hp
+	hp_label.text = "%d/%d" % [current_hp, maximum_hp]
+	var ratio := clampf(float(current_hp) / float(maximum_hp), 0.0, 1.0)
+	hp_bar.add_theme_stylebox_override("fill", _make_bar_style(Color(0.9, 0.16, 0.12).lerp(Color(0.2, 0.82, 0.25), ratio), 6))
 
 
 func _show_message(msg: String, sub: String = "") -> void:
@@ -425,6 +468,10 @@ func _run_test_step() -> void:
 			_check(_player_walk_sprite_ok(), "player-sprite")
 			_check(_player_collision_ok(), "player-collision")
 			_check(_enemy_collision_ok(), "enemy-collision")
+			_check(player.MAX_HP == 100 and player.hp == 100, "player-hp")
+			_check(_player_hp_hud_ok(), "player-hp-hud")
+			_check(_enemy_hp_ok(), "enemy-hp")
+			_check(_damage_system_ok(), "damage-system")
 			_check(get_tree().get_nodes_in_group("coin").size() >= 10, "coins-placed")
 			_check(get_tree().get_nodes_in_group("enemy").size() >= 3, "enemies-placed")
 			Input.action_press("move_right")
@@ -539,6 +586,31 @@ func _enemy_collision_ok() -> bool:
 			if shape is CapsuleShape2D and absf((shape as CapsuleShape2D).radius - 48.0) < 0.1 and absf((shape as CapsuleShape2D).height - 112.0) < 1.0:
 				return true
 	return false
+
+
+func _player_hp_hud_ok() -> bool:
+	return hp_bar != null and hp_label != null and hp_bar.max_value == 100.0 and hp_bar.value == 100.0 and hp_label.text == "100/100"
+
+
+func _enemy_hp_ok() -> bool:
+	var enemies := get_tree().get_nodes_in_group("enemy")
+	if enemies.is_empty():
+		return false
+	var enemy := enemies[0]
+	return enemy.MAX_HP == 100 and enemy.hp == 100 and enemy.CONTACT_AP == 25 and enemy.STOMP_AP == 50 and enemy.get_node_or_null("HPBar") is ProgressBar
+
+
+func _damage_system_ok() -> bool:
+	var enemies := get_tree().get_nodes_in_group("enemy")
+	if enemies.is_empty():
+		return false
+	var enemy := enemies[0]
+	player.take_damage(enemy.CONTACT_AP)
+	var player_damage_ok: bool = player.hp == 75 and player.state == player.State.ALIVE
+	player.respawn(SPAWN)
+	enemy.take_damage(enemy.STOMP_AP)
+	var enemy_damage_ok: bool = enemy.hp == 50 and not enemy.dead
+	return player_damage_ok and enemy_damage_ok
 
 
 func _check(cond: bool, test_name: String) -> void:

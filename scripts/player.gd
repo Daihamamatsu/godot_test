@@ -1,7 +1,8 @@
 extends CharacterBody2D
-## Simple Mario-style platformer character.
+## HP制のシンプルなマリオ風プレイヤー。
 
 signal died
+signal hp_changed(current_hp: int, maximum_hp: int)
 
 enum State { ALIVE, DYING, WIN }
 
@@ -16,6 +17,7 @@ const JUMP_VELOCITY := -540.0
 const COYOTE_TIME := 0.1
 const JUMP_BUFFER_TIME := 0.12
 const KILL_Y := 720.0
+const MAX_HP := 100
 
 @onready var visual: Node2D = $Visual
 @onready var walk_sprite: AnimatedSprite2D = $Visual/WalkSprite
@@ -23,6 +25,7 @@ const KILL_Y := 720.0
 var state: int = State.ALIVE
 var facing := 1
 var invincible := 0.0
+var hp := MAX_HP
 
 var _coyote := 0.0
 var _jump_buffer := 0.0
@@ -33,11 +36,12 @@ var _stretch := Vector2.ONE
 
 func _ready() -> void:
 	add_to_group("player")
+	hp_changed.emit(hp, MAX_HP)
 
 
 func _physics_process(dt: float) -> void:
 	if state == State.DYING:
-		# Tumble in place (still collides with the level while falling).
+		# その場で転がる(落下中もレベルとの衝突は継続する)。
 		velocity.y = minf(velocity.y + FALL_GRAVITY * dt, MAX_FALL_SPEED)
 		velocity.x = move_toward(velocity.x, 0.0, 800.0 * dt)
 		visual.rotation += dt * 7.0
@@ -48,7 +52,7 @@ func _physics_process(dt: float) -> void:
 	if state == State.ALIVE:
 		dir = Input.get_axis("move_left", "move_right")
 
-	# --- Horizontal movement ---
+	# --- 横移動 ---
 	if dir != 0.0:
 		var accel := ACCEL if is_on_floor() else AIR_ACCEL
 		velocity.x = move_toward(velocity.x, dir * MOVE_SPEED, accel * dt)
@@ -57,7 +61,7 @@ func _physics_process(dt: float) -> void:
 		var decel := FRICTION if is_on_floor() else AIR_ACCEL * 0.6
 		velocity.x = move_toward(velocity.x, 0.0, decel * dt)
 
-	# --- Jump buffering + coyote time ---
+	# --- ジャンプバッファ + コヨーテタイム ---
 	if Input.is_action_just_pressed("jump") and state == State.ALIVE:
 		_jump_buffer = JUMP_BUFFER_TIME
 	else:
@@ -76,22 +80,22 @@ func _physics_process(dt: float) -> void:
 		_stretch = Vector2(0.82, 1.18)
 		Sfx.play("jump")
 
-	# Variable jump height: cut the rise when the jump key is released early.
+	# ジャンプキーを早く離したときは上昇を短くする。
 	if state == State.ALIVE and not Input.is_action_pressed("jump") and velocity.y < 0.0 and not _jump_cut:
 		velocity.y *= 0.45
 		_jump_cut = true
 
-	# Victory hop.
+	# クリア後のホップ。
 	if state == State.WIN and is_on_floor():
 		velocity.y = -260.0
 
-	# Gravity (heavier while falling for a snappier arc).
+	# 重力(落下中は強くして弧をきびきびさせる)。
 	var gravity := GRAVITY if velocity.y < 0.0 else FALL_GRAVITY
 	velocity.y = minf(velocity.y + gravity * dt, MAX_FALL_SPEED)
 
 	move_and_slide()
 
-	# Landing squash + squash/stretch recovery.
+	# 着地時のつぶれと、つぶれ/伸びの回復。
 	var on_floor := is_on_floor()
 	if _was_in_air and on_floor:
 		_stretch = Vector2(1.25, 0.72)
@@ -99,7 +103,7 @@ func _physics_process(dt: float) -> void:
 
 	invincible = maxf(invincible - dt, 0.0)
 
-	# Visuals: squash & stretch + direction flip + invincibility blink.
+	# 表示: つぶれ/伸び、向き、ダメージ無敵中の点滅。
 	var target := Vector2.ONE
 	if velocity.y < -260.0:
 		target = Vector2(0.9, 1.1)
@@ -119,7 +123,7 @@ func _physics_process(dt: float) -> void:
 		walk_sprite.animation = &"walk"
 		walk_sprite.frame = 0
 
-	# Fell into a pit.
+	# 穴へ落下した場合。
 	if global_position.y > KILL_Y:
 		_die(true)
 
@@ -141,11 +145,17 @@ func _die(from_pit: bool = false) -> void:
 	tw.tween_callback(hide)
 
 
-func take_damage() -> void:
+func take_damage(ap: int) -> void:
 	if invincible > 0.0 or state != State.ALIVE:
 		return
-	invincible = 9999.0
-	_die(false)
+	hp = maxi(hp - maxi(ap, 0), 0)
+	hp_changed.emit(hp, MAX_HP)
+	Sfx.play("hurt")
+	if hp <= 0:
+		invincible = 9999.0
+		_die(false)
+	else:
+		invincible = 1.0
 
 
 func bounce() -> void:
@@ -166,6 +176,8 @@ func respawn(pos: Vector2) -> void:
 	global_position = pos
 	velocity = Vector2.ZERO
 	state = State.ALIVE
+	hp = MAX_HP
+	hp_changed.emit(hp, MAX_HP)
 	invincible = 2.0
 	show()
 	visual.rotation = 0.0

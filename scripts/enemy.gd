@@ -1,21 +1,30 @@
 extends CharacterBody2D
-## グム系敵: パトロール移動、壁/崖の縁で転向、踏みつけられて倒れる。
+## グム系敵: パトロール移動、壁/崖の縁で転向、HP制で踏みつけられて倒れる。
 
 signal stomped
+signal hp_changed(current_hp: int, maximum_hp: int)
 
 const SPEED := 65.0
 const GRAVITY := 1500.0
 const MAX_FALL_SPEED := 800.0
+const MAX_HP := 100
+const CONTACT_AP := 25
+const STOMP_AP := 50
 
 @onready var hurt: Area2D = $Hurt
+@onready var hp_bar: ProgressBar = $HPBar
 
 var dir := -1
 var dead := false
+var hp := MAX_HP
 
 
 func _ready() -> void:
 	add_to_group("enemy")
 	hurt.body_entered.connect(_on_hurt_body_entered)
+	hp_changed.connect(_on_hp_changed)
+	_hp_bar_setup()
+	hp_changed.emit(hp, MAX_HP)
 
 
 func _physics_process(dt: float) -> void:
@@ -30,7 +39,7 @@ func _physics_process(dt: float) -> void:
 		dir = -dir
 		velocity.x = 0.0
 
-	# 崖の縁で転向する(少し先の地面をレイキャストで探る)
+	# 崖の縁で転向する(少し先の地面をレイキャストで探る)。
 	# 敵カプセル(r48/h112)のつま先より外側・足元より十分に下へ張る
 	var from := global_position + Vector2(dir * 42.0, 0.0)
 	var to := from + Vector2(0.0, 92.0)
@@ -53,19 +62,57 @@ func _on_hurt_body_entered(body: Node2D) -> void:
 		_get_stomped(body)
 	else:
 		if body.has_method("take_damage"):
-			body.take_damage()
+			body.take_damage(CONTACT_AP)
 
 
 func _get_stomped(body: Node2D) -> void:
-	dead = true
+	take_damage(STOMP_AP)
+	if body.has_method("bounce"):
+		body.bounce()
+	if not dead:
+		return
 	set_physics_process(false)
 	velocity = Vector2.ZERO
 	hurt.set_deferred("monitoring", false)
 	Sfx.play("stomp")
 	emit_signal("stomped")
-	if body.has_method("bounce"):
-		body.bounce()
 	var tw := create_tween()
 	tw.tween_property(self, "scale", Vector2(1.7, 0.18), 0.12)
 	tw.tween_interval(0.5)
 	tw.tween_callback(queue_free)
+
+
+func take_damage(ap: int) -> void:
+	if dead:
+		return
+	hp = maxi(hp - maxi(ap, 0), 0)
+	hp_changed.emit(hp, MAX_HP)
+	if hp <= 0:
+		dead = true
+
+
+func _hp_bar_setup() -> void:
+	hp_bar.max_value = MAX_HP
+	hp_bar.value = hp
+	hp_bar.show_percentage = false
+	hp_bar.add_theme_stylebox_override("background", _make_bar_style(Color(0.12, 0.08, 0.08, 0.9)))
+	hp_bar.add_theme_stylebox_override("fill", _make_bar_style(_hp_color()))
+
+
+func _on_hp_changed(current_hp: int, _maximum_hp: int) -> void:
+	hp_bar.value = current_hp
+	hp_bar.add_theme_stylebox_override("fill", _make_bar_style(_hp_color()))
+
+
+func _hp_color() -> Color:
+	return Color(0.9, 0.16, 0.12).lerp(Color(0.2, 0.82, 0.25), float(hp) / float(MAX_HP))
+
+
+func _make_bar_style(color: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = color
+	style.corner_radius_top_left = 3
+	style.corner_radius_top_right = 3
+	style.corner_radius_bottom_left = 3
+	style.corner_radius_bottom_right = 3
+	return style
