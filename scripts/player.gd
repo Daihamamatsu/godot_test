@@ -21,8 +21,9 @@ const MAX_HP := 100
 const ATTACK_AP := 25
 const ATTACK_FPS := 24.0
 const ATTACK_FRAME_COUNT := 21
-const ATTACK_ACTIVE_START := 9
-const ATTACK_ACTIVE_END := 13
+# 攻撃判定は攻撃モーションの8枚目・9枚目だけ有効にする(内部フレームは0始まり)。
+const ATTACK_ACTIVE_START := 7
+const ATTACK_ACTIVE_END := 8
 
 @onready var visual: Node2D = $Visual
 @onready var walk_sprite: AnimatedSprite2D = $Visual/WalkSprite

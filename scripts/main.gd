@@ -633,7 +633,7 @@ func _attack_system_ok() -> bool:
 	if attack_area == null or attack_sprite == null or player_hurt == null or enemy_hurt == null:
 		return false
 	var frames_ok: bool = attack_sprite.sprite_frames != null and attack_sprite.sprite_frames.get_frame_count("attack") == player.ATTACK_FRAME_COUNT
-	var active_window_ok: bool = player.ATTACK_ACTIVE_START < player.ATTACK_ACTIVE_END and player.ATTACK_ACTIVE_START > 0 and player.ATTACK_ACTIVE_END < player.ATTACK_FRAME_COUNT
+	var active_window_ok: bool = player.ATTACK_ACTIVE_START == 7 and player.ATTACK_ACTIVE_END == 8 and player.ATTACK_ACTIVE_END - player.ATTACK_ACTIVE_START + 1 == 2
 	var collision_ok: bool = attack_area.collision_layer == 8 and enemy_hurt.collision_mask == 10 and player_hurt.collision_mask == 4
 	var hp_before: int = enemy.hp
 	player.start_attack()
