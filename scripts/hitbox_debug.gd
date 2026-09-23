@@ -101,5 +101,5 @@ func _draw_capsule(shape: CapsuleShape2D, fill: Color, outline: Color) -> void:
 	if center_distance > 0.0:
 		draw_line(Vector2(-radius, -center_distance), Vector2(-radius, center_distance), outline, LINE_WIDTH)
 		draw_line(Vector2(radius, -center_distance), Vector2(radius, center_distance), outline, LINE_WIDTH)
-	draw_arc(Vector2(0.0, -center_distance), radius, PI, TAU, 20, outline, LINE_WIDTH)
+		draw_arc(Vector2(0.0, -center_distance), radius, PI, TAU, 20, outline, LINE_WIDTH)
 		draw_arc(Vector2(0.0, center_distance), radius, 0.0, PI, 20, outline, LINE_WIDTH)
