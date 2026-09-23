@@ -1,5 +1,5 @@
 extends CharacterBody2D
-## HP制のシンプルなマリオ風プレイヤー。
+## HP制とキック攻撃を持つシンプルなマリオ風プレイヤー。
 
 signal died
 signal hp_changed(current_hp: int, maximum_hp: int)
@@ -18,14 +18,24 @@ const COYOTE_TIME := 0.1
 const JUMP_BUFFER_TIME := 0.12
 const KILL_Y := 720.0
 const MAX_HP := 100
+const ATTACK_AP := 25
+const ATTACK_FPS := 24.0
+const ATTACK_FRAME_COUNT := 21
+const ATTACK_ACTIVE_START := 9
+const ATTACK_ACTIVE_END := 13
 
 @onready var visual: Node2D = $Visual
 @onready var walk_sprite: AnimatedSprite2D = $Visual/WalkSprite
+@onready var attack_sprite: AnimatedSprite2D = $Visual/AttackSprite
+@onready var attack_area: Area2D = $AttackArea
 
 var state: int = State.ALIVE
 var facing := 1
 var invincible := 0.0
 var hp := MAX_HP
+var attacking := false
+var _attack_elapsed := 0.0
+var _attack_hit_targets: Array[Node] = []
 
 var _coyote := 0.0
 var _jump_buffer := 0.0
@@ -36,6 +46,9 @@ var _stretch := Vector2.ONE
 
 func _ready() -> void:
 	add_to_group("player")
+	attack_area.add_to_group("player_attack")
+	attack_area.monitoring = false
+	attack_sprite.visible = false
 	hp_changed.emit(hp, MAX_HP)
 
 
@@ -51,6 +64,8 @@ func _physics_process(dt: float) -> void:
 	var dir := 0.0
 	if state == State.ALIVE:
 		dir = Input.get_axis("move_left", "move_right")
+		if Input.is_action_just_pressed("attack"):
+			start_attack()
 
 	# --- 横移動 ---
 	if dir != 0.0:
@@ -94,6 +109,7 @@ func _physics_process(dt: float) -> void:
 	velocity.y = minf(velocity.y + gravity * dt, MAX_FALL_SPEED)
 
 	move_and_slide()
+	_update_attack(dt)
 
 	# 着地時のつぶれと、つぶれ/伸びの回復。
 	var on_floor := is_on_floor()
@@ -113,15 +129,22 @@ func _physics_process(dt: float) -> void:
 	visual.scale = Vector2(facing * _stretch.x, _stretch.y)
 	visual.modulate.a = 0.35 if (invincible > 0.0 and fmod(invincible, 0.2) < 0.1) else 1.0
 
-	# 歩行アニメーション: 横移動中は "walk" ループ再生、停止時は停止して 0 フレームへ
-	if absf(velocity.x) > 10.0:
-		if walk_sprite.animation != &"walk":
-			walk_sprite.animation = &"walk"
-		walk_sprite.play()
-	else:
+	# 歩行アニメーション: 攻撃中はキック表示を優先する。
+	if attacking:
 		walk_sprite.stop()
-		walk_sprite.animation = &"walk"
-		walk_sprite.frame = 0
+		walk_sprite.visible = false
+		attack_sprite.visible = true
+	else:
+		walk_sprite.visible = true
+		attack_sprite.visible = false
+		if absf(velocity.x) > 10.0:
+			if walk_sprite.animation != &"walk":
+				walk_sprite.animation = &"walk"
+			walk_sprite.play()
+		else:
+			walk_sprite.stop()
+			walk_sprite.animation = &"walk"
+			walk_sprite.frame = 0
 
 	# 穴へ落下した場合。
 	if global_position.y > KILL_Y:
@@ -134,6 +157,7 @@ func _die(from_pit: bool = false) -> void:
 	state = State.DYING
 	walk_sprite.stop()
 	walk_sprite.frame = 0
+	_finish_attack()
 	Sfx.play("hurt")
 	emit_signal("died")
 	if from_pit:
@@ -156,6 +180,52 @@ func take_damage(ap: int) -> void:
 		_die(false)
 	else:
 		invincible = 1.0
+
+
+func start_attack() -> void:
+	if attacking or state != State.ALIVE:
+		return
+	attacking = true
+	_attack_elapsed = 0.0
+	_attack_hit_targets.clear()
+	attack_sprite.animation = &"attack"
+	attack_sprite.frame = 0
+	attack_sprite.speed_scale = 1.0
+	attack_sprite.play()
+	Sfx.play("attack")
+
+
+func _update_attack(dt: float) -> void:
+	if not attacking:
+		return
+	_attack_elapsed += dt
+	var frame := mini(int(_attack_elapsed * ATTACK_FPS), ATTACK_FRAME_COUNT - 1)
+	attack_sprite.frame = frame
+	var active := frame >= ATTACK_ACTIVE_START and frame <= ATTACK_ACTIVE_END
+	attack_area.monitoring = active
+	attack_area.position.x = facing * 92.0
+	if _attack_elapsed >= float(ATTACK_FRAME_COUNT) / ATTACK_FPS:
+		_finish_attack()
+
+
+func _finish_attack() -> void:
+	attacking = false
+	_attack_elapsed = 0.0
+	_attack_hit_targets.clear()
+	attack_area.set_deferred("monitoring", false)
+	attack_sprite.stop()
+	attack_sprite.frame = 0
+
+
+func consume_attack_hit(target: Node) -> bool:
+	if not attacking or target in _attack_hit_targets:
+		return false
+	_attack_hit_targets.append(target)
+	return true
+
+
+func is_attack_active() -> bool:
+	return attacking and attack_area.monitoring
 
 
 func bounce() -> void:
@@ -183,5 +253,6 @@ func respawn(pos: Vector2) -> void:
 	visual.rotation = 0.0
 	_stretch = Vector2.ONE
 	visual.scale = Vector2.ONE
+	_finish_attack()
 	_jump_cut = false
 	_was_in_air = false

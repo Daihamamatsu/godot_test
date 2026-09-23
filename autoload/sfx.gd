@@ -22,6 +22,8 @@ func _ready() -> void:
 	]))
 	_sounds["stomp"] = _finish(_tone(220.0, 55.0, 0.12, 0.6, 2))
 	_sounds["hurt"] = _finish(_tone(500.0, 90.0, 0.35, 0.5, 2))
+	_sounds["attack"] = _finish(_tone(180.0, 520.0, 0.12, 0.45, 0))
+	_sounds["hit"] = _finish(_tone(760.0, 180.0, 0.1, 0.45, 2))
 	_sounds["clear"] = _finish(_cat([
 		_tone(523.25, 523.25, 0.09, 0.4, 1),
 		_tone(659.25, 659.25, 0.09, 0.4, 1),

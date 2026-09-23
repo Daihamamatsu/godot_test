@@ -427,7 +427,7 @@ func _hide_message() -> void:
 
 
 func _intro() -> void:
-	_show_message("READY?", "← → / A D : Move      SPACE : Jump      R : Restart")
+	_show_message("READY?", "← → / A D : Move      SPACE : Jump      J : Attack      R : Restart")
 	await get_tree().create_timer(2.0).timeout
 	if state == GameState.PLAYING:
 		_hide_message()
@@ -458,7 +458,7 @@ func _run_test_step() -> void:
 	_test_frame += 1
 	match _test_frame:
 		5:
-			_check(_has_bound_key("move_left") and _has_bound_key("move_right") and _has_bound_key("jump") and _has_bound_key("restart"), "input-map")
+			_check(_has_bound_key("move_left") and _has_bound_key("move_right") and _has_bound_key("jump") and _has_bound_key("restart") and _has_bound_key("attack"), "input-map")
 			_check(player != null and player.is_in_group("player"), "player-ready")
 			_check(_midground_forest_ok(), "midground-forest")
 			_check(_midground_reaches_screen_bottom(), "midground-screen-bottom")
@@ -472,6 +472,7 @@ func _run_test_step() -> void:
 			_check(_player_hp_hud_ok(), "player-hp-hud")
 			_check(_enemy_hp_ok(), "enemy-hp")
 			_check(_damage_system_ok(), "damage-system")
+			_check(_attack_system_ok(), "attack-system")
 			_check(get_tree().get_nodes_in_group("coin").size() >= 10, "coins-placed")
 			_check(get_tree().get_nodes_in_group("enemy").size() >= 3, "enemies-placed")
 			Input.action_press("move_right")
@@ -597,7 +598,7 @@ func _enemy_hp_ok() -> bool:
 	if enemies.is_empty():
 		return false
 	var enemy := enemies[0]
-	return enemy.MAX_HP == 100 and enemy.hp == 100 and enemy.CONTACT_AP == 25 and enemy.STOMP_AP == 50 and enemy.get_node_or_null("HPBar") is ProgressBar
+	return enemy.MAX_HP == 100 and enemy.hp == 100 and enemy.STOMP_AP == 50 and enemy.get_node_or_null("HPBar") is ProgressBar and enemy.get_node_or_null("Hurt") is Area2D
 
 
 func _damage_system_ok() -> bool:
@@ -605,12 +606,44 @@ func _damage_system_ok() -> bool:
 	if enemies.is_empty():
 		return false
 	var enemy := enemies[0]
-	player.take_damage(enemy.CONTACT_AP)
-	var player_damage_ok: bool = player.hp == 75 and player.state == player.State.ALIVE
+	var player_hp_before: int = player.hp
+	var enemy_position_before: Vector2 = enemy.global_position
+	player.global_position = enemy.global_position + Vector2(0.0, 150.0)
+	enemy._on_hurt_body_entered(player)
+	var contact_damage_removed: bool = player.hp == player_hp_before
+	player.global_position = SPAWN
+	enemy.global_position = enemy_position_before
 	player.respawn(SPAWN)
 	enemy.take_damage(enemy.STOMP_AP)
 	var enemy_damage_ok: bool = enemy.hp == 50 and not enemy.dead
-	return player_damage_ok and enemy_damage_ok
+	return contact_damage_removed and enemy_damage_ok
+
+
+func _attack_system_ok() -> bool:
+	var enemies := get_tree().get_nodes_in_group("enemy")
+	if enemies.is_empty():
+		return false
+	var enemy := enemies[0]
+	var attack_area := player.get_node_or_null("AttackArea") as Area2D
+	var attack_sprite := player.get_node_or_null("Visual/AttackSprite") as AnimatedSprite2D
+	var player_hurt := player.get_node_or_null("HurtBox") as Area2D
+	var enemy_hurt := enemy.get_node_or_null("Hurt") as Area2D
+	if attack_area == null or attack_sprite == null or player_hurt == null or enemy_hurt == null:
+		return false
+	var frames_ok: bool = attack_sprite.sprite_frames != null and attack_sprite.sprite_frames.get_frame_count("attack") == player.ATTACK_FRAME_COUNT
+	var active_window_ok: bool = player.ATTACK_ACTIVE_START < player.ATTACK_ACTIVE_END and player.ATTACK_ACTIVE_START > 0 and player.ATTACK_ACTIVE_END < player.ATTACK_FRAME_COUNT
+	var collision_ok: bool = attack_area.collision_layer == 8 and enemy_hurt.collision_mask == 10 and player_hurt.collision_mask == 4
+	var hp_before: int = enemy.hp
+	player.start_attack()
+	attack_area.monitoring = true
+	enemy._on_hurt_area_entered(attack_area)
+	var hit_once: bool = enemy.hp == hp_before - player.ATTACK_AP
+	enemy._on_hurt_area_entered(attack_area)
+	var hit_once_only: bool = enemy.hp == hp_before - player.ATTACK_AP
+	player._finish_attack()
+	enemy.hp = hp_before
+	enemy.hp_changed.emit(enemy.hp, enemy.MAX_HP)
+	return frames_ok and active_window_ok and collision_ok and hit_once and hit_once_only
 
 
 func _check(cond: bool, test_name: String) -> void:

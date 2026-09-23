@@ -8,10 +8,10 @@ const SPEED := 65.0
 const GRAVITY := 1500.0
 const MAX_FALL_SPEED := 800.0
 const MAX_HP := 100
-const CONTACT_AP := 25
 const STOMP_AP := 50
 
 @onready var hurt: Area2D = $Hurt
+@onready var hurt_shape: CollisionShape2D = $Hurt/CollisionShape2D
 @onready var hp_bar: ProgressBar = $HPBar
 
 var dir := -1
@@ -22,6 +22,7 @@ var hp := MAX_HP
 func _ready() -> void:
 	add_to_group("enemy")
 	hurt.body_entered.connect(_on_hurt_body_entered)
+	hurt.area_entered.connect(_on_hurt_area_entered)
 	hp_changed.connect(_on_hp_changed)
 	_hp_bar_setup()
 	hp_changed.emit(hp, MAX_HP)
@@ -60,9 +61,18 @@ func _on_hurt_body_entered(body: Node2D) -> void:
 	var enemy_top := global_position.y - 56.0
 	if body.velocity.y > -50.0 and player_bottom < enemy_top + 48.0:
 		_get_stomped(body)
-	else:
-		if body.has_method("take_damage"):
-			body.take_damage(CONTACT_AP)
+
+
+func _on_hurt_area_entered(area: Area2D) -> void:
+	if dead or not area.is_in_group("player_attack"):
+		return
+	var attacker := area.get_parent()
+	if not attacker.is_in_group("player") or not attacker.has_method("consume_attack_hit"):
+		return
+	if not attacker.consume_attack_hit(self):
+		return
+	take_damage(attacker.ATTACK_AP)
+	Sfx.play("hit")
 
 
 func _get_stomped(body: Node2D) -> void:
