@@ -21,6 +21,7 @@ var dir := -1
 var dead := false
 var hp := MAX_HP
 var hitstun := 0.0
+var _hitbox_debug_draw: Node2D
 
 
 func _ready() -> void:
@@ -29,6 +30,9 @@ func _ready() -> void:
 	hurt.area_entered.connect(_on_hurt_area_entered)
 	hp_changed.connect(_on_hp_changed)
 	_hp_bar_setup()
+	_hitbox_debug_draw = preload("res://scripts/hitbox_debug.gd").new()
+	_hitbox_debug_draw.name = "HitboxDebug"
+	add_child(_hitbox_debug_draw)
 	hp_changed.emit(hp, MAX_HP)
 
 
@@ -129,6 +133,11 @@ func take_damage(ap: int) -> void:
 	hp_changed.emit(hp, MAX_HP)
 	if hp <= 0:
 		dead = true
+
+
+func set_hitbox_debug_enabled(value: bool) -> void:
+	if _hitbox_debug_draw != null:
+		_hitbox_debug_draw.set_enabled(value)
 
 
 func _hp_bar_setup() -> void:

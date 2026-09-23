@@ -31,6 +31,7 @@ const ATTACK_ACTIVE_END := 8
 @onready var attack_area: Area2D = $AttackArea
 
 var state: int = State.ALIVE
+var _hitbox_debug_draw: Node2D
 var facing := 1
 var invincible := 0.0
 var hp := MAX_HP
@@ -50,6 +51,9 @@ func _ready() -> void:
 	attack_area.add_to_group("player_attack")
 	attack_area.monitoring = false
 	attack_sprite.visible = false
+	_hitbox_debug_draw = preload("res://scripts/hitbox_debug.gd").new()
+	_hitbox_debug_draw.name = "HitboxDebug"
+	add_child(_hitbox_debug_draw)
 	hp_changed.emit(hp, MAX_HP)
 
 
@@ -233,6 +237,11 @@ func consume_attack_hit(target: Node) -> bool:
 
 func is_attack_active() -> bool:
 	return attacking and attack_area.monitoring
+
+
+func set_hitbox_debug_enabled(value: bool) -> void:
+	if _hitbox_debug_draw != null:
+		_hitbox_debug_draw.set_enabled(value)
 
 
 func bounce() -> void:

@@ -62,8 +62,10 @@ var hp_bar: ProgressBar
 var hp_label: Label
 var message_label: Label
 var sub_label: Label
+var hitbox_debug_label: Label
 var midground_forest: Node2D
 var midground_camera_origin := Vector2.ZERO
+var hitbox_debug_enabled := false
 
 var _test_mode := false
 var _test_frame := 0
@@ -361,8 +363,14 @@ func _build_hud() -> void:
 	hint.anchor_bottom = 1.0
 	hint.offset_top = -34.0
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.text = "← → / A D : Move      SPACE : Jump      R : Restart"
+	hint.text = "← → / A D : Move      SPACE : Jump      J : Attack      P : Hitbox View      R : Restart"
 	hud.add_child(hint)
+
+	hitbox_debug_label = _make_label(18, Color(1.0, 0.9, 0.25, 0.95))
+	hitbox_debug_label.position = Vector2(16, 48)
+	hitbox_debug_label.text = "HITBOX VIEW: OFF"
+	hitbox_debug_label.visible = false
+	hud.add_child(hitbox_debug_label)
 
 
 func _make_label(size: int, color: Color) -> Label:
@@ -427,7 +435,7 @@ func _hide_message() -> void:
 
 
 func _intro() -> void:
-	_show_message("READY?", "← → / A D : Move      SPACE : Jump      J : Attack      R : Restart")
+	_show_message("READY?", "← → / A D : Move      SPACE : Jump      J : Attack      P : Hitbox View      R : Restart")
 	await get_tree().create_timer(2.0).timeout
 	if state == GameState.PLAYING:
 		_hide_message()
@@ -438,9 +446,24 @@ func _process(_dt: float) -> void:
 	if Input.is_action_just_pressed("restart"):
 		get_tree().reload_current_scene()
 		return
+	if Input.is_action_just_pressed("toggle_hitbox_debug"):
+		_set_hitbox_debug_enabled(not hitbox_debug_enabled)
 	_update_midground_scroll()
 	if _test_mode:
 		_run_test_step()
+
+
+func _set_hitbox_debug_enabled(value: bool) -> void:
+	hitbox_debug_enabled = value
+	if hitbox_debug_label != null:
+		hitbox_debug_label.text = "HITBOX VIEW: ON" if value else "HITBOX VIEW: OFF"
+		hitbox_debug_label.visible = value
+	for node in get_tree().get_nodes_in_group("player"):
+		if node.has_method("set_hitbox_debug_enabled"):
+			node.set_hitbox_debug_enabled(value)
+	for node in get_tree().get_nodes_in_group("enemy"):
+		if node.has_method("set_hitbox_debug_enabled"):
+			node.set_hitbox_debug_enabled(value)
 
 
 func _update_midground_scroll() -> void:
@@ -458,7 +481,7 @@ func _run_test_step() -> void:
 	_test_frame += 1
 	match _test_frame:
 		5:
-			_check(_has_bound_key("move_left") and _has_bound_key("move_right") and _has_bound_key("jump") and _has_bound_key("restart") and _has_bound_key("attack"), "input-map")
+			_check(_has_bound_key("move_left") and _has_bound_key("move_right") and _has_bound_key("jump") and _has_bound_key("restart") and _has_bound_key("attack") and _has_bound_key("toggle_hitbox_debug"), "input-map")
 			_check(player != null and player.is_in_group("player"), "player-ready")
 			_check(_midground_forest_ok(), "midground-forest")
 			_check(_midground_reaches_screen_bottom(), "midground-screen-bottom")
@@ -468,6 +491,8 @@ func _run_test_step() -> void:
 			_check(_player_walk_sprite_ok(), "player-sprite")
 			_check(_player_collision_ok(), "player-collision")
 			_check(_enemy_collision_ok(), "enemy-collision")
+			_check(_hitbox_visualization_nodes_ok(), "hitbox-visualization-nodes")
+			_check(_hitbox_toggle_ok(), "hitbox-toggle")
 			_check(player.MAX_HP == 100 and player.hp == 100, "player-hp")
 			_check(_player_hp_hud_ok(), "player-hp-hud")
 			_check(_enemy_hp_ok(), "enemy-hp")
@@ -589,6 +614,41 @@ func _enemy_collision_ok() -> bool:
 			if shape is CapsuleShape2D and absf((shape as CapsuleShape2D).radius - 48.0) < 0.1 and absf((shape as CapsuleShape2D).height - 112.0) < 1.0:
 				return true
 	return false
+
+
+func _hitbox_visualization_nodes_ok() -> bool:
+	if player == null or player.get_node_or_null("HitboxDebug") == null:
+		return false
+	var enemies := get_tree().get_nodes_in_group("enemy")
+	if enemies.is_empty():
+		return false
+	for enemy in enemies:
+		if enemy.get_node_or_null("HitboxDebug") == null:
+			return false
+	return player.get_node_or_null("CollisionShape2D") is CollisionShape2D \
+		and player.get_node_or_null("HurtBox/CollisionShape2D") is CollisionShape2D \
+		and player.get_node_or_null("AttackArea/CollisionShape2D") is CollisionShape2D \
+		and enemies[0].get_node_or_null("CollisionShape2D") is CollisionShape2D \
+		and enemies[0].get_node_or_null("Hurt/CollisionShape2D") is CollisionShape2D
+
+
+func _hitbox_toggle_ok() -> bool:
+	_set_hitbox_debug_enabled(true)
+	var enabled_ok: bool = hitbox_debug_enabled and _all_hitbox_debug_nodes_visible()
+	_set_hitbox_debug_enabled(false)
+	var disabled_ok: bool = not hitbox_debug_enabled and not _all_hitbox_debug_nodes_visible()
+	return enabled_ok and disabled_ok
+
+
+func _all_hitbox_debug_nodes_visible() -> bool:
+	var nodes := get_tree().get_nodes_in_group("player") + get_tree().get_nodes_in_group("enemy")
+	if nodes.is_empty():
+		return false
+	for node in nodes:
+		var debug_draw := node.get_node_or_null("HitboxDebug") as Node2D
+		if debug_draw == null or not debug_draw.visible:
+			return false
+	return true
 
 
 func _player_hp_hud_ok() -> bool:
