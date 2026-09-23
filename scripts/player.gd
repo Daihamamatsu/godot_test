@@ -215,6 +215,8 @@ func _update_attack(dt: float) -> void:
 	var active := frame >= ATTACK_ACTIVE_START and frame <= ATTACK_ACTIVE_END
 	attack_area.monitoring = active
 	attack_area.position.x = facing * 92.0
+	if active:
+		_resolve_attack_overlaps()
 	if _attack_elapsed >= float(ATTACK_FRAME_COUNT) / ATTACK_FPS:
 		_finish_attack()
 
@@ -237,6 +239,33 @@ func consume_attack_hit(target: Node) -> bool:
 
 func is_attack_active() -> bool:
 	return attacking and attack_area.monitoring
+
+
+func _resolve_attack_overlaps() -> void:
+	# 短い攻撃有効時間でも重なりを取りこぼさないよう、攻撃形状を直接問い合わせる。
+	var attack_shape_node := attack_area.get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if attack_shape_node != null and attack_shape_node.shape != null:
+		var query := PhysicsShapeQueryParameters2D.new()
+		query.shape = attack_shape_node.shape
+		query.transform = attack_shape_node.global_transform
+		query.collision_mask = attack_area.collision_mask
+		query.collide_with_areas = true
+		query.collide_with_bodies = false
+		var results := get_world_2d().direct_space_state.intersect_shape(query, 16)
+		for result in results:
+			_handle_attack_area(result.get("collider") as Area2D)
+
+	# 既存の Area2D 重なり一覧も処理し、通常のシグナル経路を補完する。
+	for area in attack_area.get_overlapping_areas():
+		_handle_attack_area(area)
+
+
+func _handle_attack_area(area: Area2D) -> void:
+	if area == null or not area.is_in_group("enemy_hurt"):
+		return
+	var target := area.get_parent()
+	if target != null and target.has_method("_on_hurt_area_entered"):
+		target._on_hurt_area_entered(attack_area)
 
 
 func set_hitbox_debug_enabled(value: bool) -> void:

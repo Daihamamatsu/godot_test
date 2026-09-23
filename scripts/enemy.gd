@@ -26,6 +26,7 @@ var _hitbox_debug_draw: Node2D
 
 func _ready() -> void:
 	add_to_group("enemy")
+	hurt.add_to_group("enemy_hurt")
 	hurt.body_entered.connect(_on_hurt_body_entered)
 	hurt.area_entered.connect(_on_hurt_area_entered)
 	hp_changed.connect(_on_hp_changed)

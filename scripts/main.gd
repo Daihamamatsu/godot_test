@@ -73,6 +73,9 @@ var _test_ok := true
 var _test_camera_origin := Vector2.ZERO
 var _test_forest_origin := Vector2.ZERO
 var _test_forest_y_origin := 0.0
+var _attack_overlap_test_enemy: Node2D
+var _attack_overlap_test_hp := 0
+var _attack_overlap_test_pending := false
 
 
 func _ready() -> void:
@@ -448,6 +451,7 @@ func _process(_dt: float) -> void:
 		return
 	if Input.is_action_just_pressed("toggle_hitbox_debug"):
 		_set_hitbox_debug_enabled(not hitbox_debug_enabled)
+	_update_hitbox_debug_label()
 	_update_midground_scroll()
 	if _test_mode:
 		_run_test_step()
@@ -464,6 +468,13 @@ func _set_hitbox_debug_enabled(value: bool) -> void:
 	for node in get_tree().get_nodes_in_group("enemy"):
 		if node.has_method("set_hitbox_debug_enabled"):
 			node.set_hitbox_debug_enabled(value)
+
+
+func _update_hitbox_debug_label() -> void:
+	if not hitbox_debug_enabled or hitbox_debug_label == null or player == null:
+		return
+	var attack_state := "ACTIVE" if player.is_attack_active() else "INACTIVE"
+	hitbox_debug_label.text = "HITBOX VIEW: ON    ATTACK: %s" % attack_state
 
 
 func _update_midground_scroll() -> void:
@@ -500,6 +511,7 @@ func _run_test_step() -> void:
 			_check(_attack_system_ok(), "attack-system")
 			_check(_attack_input_lock_ok(), "attack-input-lock")
 			_check(_enemy_hit_motion_ok(), "enemy-hit-motion")
+			_attack_overlap_physics_begin()
 			_check(get_tree().get_nodes_in_group("coin").size() >= 10, "coins-placed")
 			_check(get_tree().get_nodes_in_group("enemy").size() >= 3, "enemies-placed")
 			Input.action_press("move_right")
@@ -523,6 +535,8 @@ func _run_test_step() -> void:
 			_check(player.state == player.State.ALIVE, "player-alive")
 			print("TEST SUMMARY: %s" % ("ALL PASS" if _test_ok else "FAILED"))
 			get_tree().quit(0 if _test_ok else 1)
+		7:
+			_check(_attack_overlap_physics_finish(), "attack-overlap-physics")
 
 
 # アクションに実キー(keycodeまたはphysical_keycodeがKEY_NONEでない)が
@@ -694,7 +708,7 @@ func _attack_system_ok() -> bool:
 		return false
 	var frames_ok: bool = attack_sprite.sprite_frames != null and attack_sprite.sprite_frames.get_frame_count("attack") == player.ATTACK_FRAME_COUNT
 	var active_window_ok: bool = player.ATTACK_ACTIVE_START == 7 and player.ATTACK_ACTIVE_END == 8 and player.ATTACK_ACTIVE_END - player.ATTACK_ACTIVE_START + 1 == 2
-	var collision_ok: bool = attack_area.collision_layer == 8 and enemy_hurt.collision_mask == 10 and player_hurt.collision_mask == 4
+	var collision_ok: bool = attack_area.collision_layer == 8 and attack_area.collision_mask == 4 and enemy_hurt.collision_layer == 4 and enemy_hurt.collision_mask == 10 and player_hurt.collision_mask == 4
 	var hp_before: int = enemy.hp
 	player.start_attack()
 	attack_area.monitoring = true
@@ -722,6 +736,46 @@ func _attack_input_lock_ok() -> bool:
 	player._finish_attack()
 	player.respawn(SPAWN)
 	return movement_locked and jump_locked and attack_still_active
+
+
+func _attack_overlap_physics_begin() -> void:
+	var enemies := get_tree().get_nodes_in_group("enemy")
+	if enemies.is_empty():
+		return
+	_attack_overlap_test_enemy = enemies[0] as Node2D
+	if _attack_overlap_test_enemy == null or player.get_node_or_null("AttackArea") == null:
+		_attack_overlap_test_enemy = null
+		return
+	var player_position_before: Vector2 = player.global_position
+	_attack_overlap_test_hp = _attack_overlap_test_enemy.hp
+	player.global_position = Vector2(500.0, 400.0)
+	player.facing = 1
+	_attack_overlap_test_enemy.global_position = player.global_position + Vector2(92.0, 16.0)
+	_attack_overlap_test_enemy.hitstun = 0.0
+	_attack_overlap_test_enemy.dead = false
+	player.start_attack()
+	# 次の物理フレームで有効フレームに入り、更新済みの重なり一覧を検証する。
+	player._attack_elapsed = (float(player.ATTACK_ACTIVE_START) - 0.1) / player.ATTACK_FPS
+	_attack_overlap_test_pending = true
+	player.set_meta("attack_overlap_test_player_position", player_position_before)
+
+
+func _attack_overlap_physics_finish() -> bool:
+	if not _attack_overlap_test_pending or _attack_overlap_test_enemy == null:
+		return false
+	var hit_ok: bool = _attack_overlap_test_enemy.hp == _attack_overlap_test_hp - player.ATTACK_AP
+	var player_position_before: Vector2 = player.get_meta("attack_overlap_test_player_position", SPAWN)
+	player._finish_attack()
+	_attack_overlap_test_enemy.hp = _attack_overlap_test_hp
+	_attack_overlap_test_enemy.hp_changed.emit(_attack_overlap_test_enemy.hp, _attack_overlap_test_enemy.MAX_HP)
+	_attack_overlap_test_enemy.hitstun = 0.0
+	_attack_overlap_test_enemy.modulate.a = 1.0
+	_attack_overlap_test_enemy.global_position = Vector2(760.0, 544.0)
+	player.global_position = player_position_before
+	player.respawn(SPAWN)
+	_attack_overlap_test_enemy = null
+	_attack_overlap_test_pending = false
+	return hit_ok
 
 
 func _enemy_hit_motion_ok() -> bool:

@@ -60,7 +60,7 @@ func _draw() -> void:
 			var attack_color := ATTACK_COLOR
 			var attack_outline := ATTACK_OUTLINE
 			if not attack_area.monitoring:
-				attack_color.a = 0.08
+				attack_color.a = 0.0
 				attack_outline.a = 0.42
 			_draw_collision_shape(
 				attack_shape.shape,
