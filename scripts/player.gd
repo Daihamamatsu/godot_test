@@ -62,13 +62,16 @@ func _physics_process(dt: float) -> void:
 		return
 
 	var dir := 0.0
-	if state == State.ALIVE:
+	if state == State.ALIVE and not attacking:
 		dir = Input.get_axis("move_left", "move_right")
 		if Input.is_action_just_pressed("attack"):
 			start_attack()
 
 	# --- 横移動 ---
-	if dir != 0.0:
+	if attacking:
+		# 攻撃中は移動入力を受け付けず、その場で攻撃を続ける。
+		velocity.x = 0.0
+	elif dir != 0.0:
 		var accel := ACCEL if is_on_floor() else AIR_ACCEL
 		velocity.x = move_toward(velocity.x, dir * MOVE_SPEED, accel * dt)
 		facing = 1 if dir > 0.0 else -1
@@ -77,7 +80,9 @@ func _physics_process(dt: float) -> void:
 		velocity.x = move_toward(velocity.x, 0.0, decel * dt)
 
 	# --- ジャンプバッファ + コヨーテタイム ---
-	if Input.is_action_just_pressed("jump") and state == State.ALIVE:
+	if attacking:
+		_jump_buffer = 0.0
+	elif Input.is_action_just_pressed("jump") and state == State.ALIVE:
 		_jump_buffer = JUMP_BUFFER_TIME
 	else:
 		_jump_buffer = maxf(_jump_buffer - dt, 0.0)
@@ -88,7 +93,7 @@ func _physics_process(dt: float) -> void:
 	else:
 		_coyote = maxf(_coyote - dt, 0.0)
 
-	if _jump_buffer > 0.0 and _coyote > 0.0 and state == State.ALIVE:
+	if _jump_buffer > 0.0 and _coyote > 0.0 and state == State.ALIVE and not attacking:
 		velocity.y = JUMP_VELOCITY
 		_jump_buffer = 0.0
 		_coyote = 0.0
@@ -186,6 +191,7 @@ func start_attack() -> void:
 	if attacking or state != State.ALIVE:
 		return
 	attacking = true
+	_jump_buffer = 0.0
 	_attack_elapsed = 0.0
 	_attack_hit_targets.clear()
 	attack_sprite.animation = &"attack"

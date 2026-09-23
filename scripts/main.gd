@@ -473,6 +473,8 @@ func _run_test_step() -> void:
 			_check(_enemy_hp_ok(), "enemy-hp")
 			_check(_damage_system_ok(), "damage-system")
 			_check(_attack_system_ok(), "attack-system")
+			_check(_attack_input_lock_ok(), "attack-input-lock")
+			_check(_enemy_hit_motion_ok(), "enemy-hit-motion")
 			_check(get_tree().get_nodes_in_group("coin").size() >= 10, "coins-placed")
 			_check(get_tree().get_nodes_in_group("enemy").size() >= 3, "enemies-placed")
 			Input.action_press("move_right")
@@ -643,7 +645,47 @@ func _attack_system_ok() -> bool:
 	player._finish_attack()
 	enemy.hp = hp_before
 	enemy.hp_changed.emit(enemy.hp, enemy.MAX_HP)
+	enemy.hitstun = 0.0
+	enemy.modulate.a = 1.0
 	return frames_ok and active_window_ok and collision_ok and hit_once and hit_once_only
+
+
+func _attack_input_lock_ok() -> bool:
+	var position_before: Vector2 = player.global_position
+	player.velocity = Vector2(120.0, 0.0)
+	player._jump_buffer = player.JUMP_BUFFER_TIME
+	player.start_attack()
+	player._physics_process(1.0 / 60.0)
+	var movement_locked: bool = is_zero_approx(player.global_position.x - position_before.x) and is_zero_approx(player.velocity.x)
+	var jump_locked: bool = player.velocity.y >= 0.0 and is_zero_approx(player._jump_buffer)
+	var attack_still_active: bool = player.attacking
+	player._finish_attack()
+	player.respawn(SPAWN)
+	return movement_locked and jump_locked and attack_still_active
+
+
+func _enemy_hit_motion_ok() -> bool:
+	var enemies := get_tree().get_nodes_in_group("enemy")
+	if enemies.is_empty():
+		return false
+	var enemy := enemies[0]
+	var attacker := player
+	var start_position: Vector2 = enemy.global_position
+	var start_hp: int = enemy.hp
+	attacker.global_position = start_position + Vector2(-120.0, 0.0)
+	enemy.receive_attack_damage(attacker.ATTACK_AP, attacker)
+	var hp_ok: bool = enemy.hp == start_hp - attacker.ATTACK_AP
+	var knockback_ok: bool = enemy.velocity.x > 0.0
+	var alpha_ok: bool = is_equal_approx(enemy.modulate.a, enemy.HITSTUN_ALPHA)
+	var hitstun_ok: bool = enemy.hitstun > 0.0
+	enemy._physics_process(0.1)
+	var moved_ok: bool = enemy.global_position.x > start_position.x
+	enemy.hitstun = 0.0
+	enemy.modulate.a = 1.0
+	enemy.global_position = start_position
+	enemy.velocity = Vector2.ZERO
+	attacker.global_position = SPAWN
+	return hp_ok and knockback_ok and alpha_ok and hitstun_ok and moved_ok
 
 
 func _check(cond: bool, test_name: String) -> void:

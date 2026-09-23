@@ -9,6 +9,9 @@ const GRAVITY := 1500.0
 const MAX_FALL_SPEED := 800.0
 const MAX_HP := 100
 const STOMP_AP := 50
+const HITSTUN_TIME := 0.3
+const HITSTUN_KNOCKBACK := 180.0
+const HITSTUN_ALPHA := 0.45
 
 @onready var hurt: Area2D = $Hurt
 @onready var hurt_shape: CollisionShape2D = $Hurt/CollisionShape2D
@@ -17,6 +20,7 @@ const STOMP_AP := 50
 var dir := -1
 var dead := false
 var hp := MAX_HP
+var hitstun := 0.0
 
 
 func _ready() -> void:
@@ -32,9 +36,18 @@ func _physics_process(dt: float) -> void:
 	if dead:
 		return
 
+	if hitstun > 0.0:
+		hitstun = maxf(hitstun - dt, 0.0)
+		velocity.x = move_toward(velocity.x, 0.0, 900.0 * dt)
+		velocity.y = minf(velocity.y + GRAVITY * dt, MAX_FALL_SPEED)
+		move_and_slide()
+		modulate.a = HITSTUN_ALPHA if hitstun > 0.0 else 1.0
+		return
+
 	velocity.x = dir * SPEED
 	velocity.y = minf(velocity.y + GRAVITY * dt, MAX_FALL_SPEED)
 	move_and_slide()
+	modulate.a = 1.0
 
 	if is_on_wall():
 		dir = -dir
@@ -64,15 +77,31 @@ func _on_hurt_body_entered(body: Node2D) -> void:
 
 
 func _on_hurt_area_entered(area: Area2D) -> void:
-	if dead or not area.is_in_group("player_attack"):
+	if dead or hitstun > 0.0 or not area.is_in_group("player_attack"):
 		return
 	var attacker := area.get_parent()
 	if not attacker.is_in_group("player") or not attacker.has_method("consume_attack_hit"):
 		return
 	if not attacker.consume_attack_hit(self):
 		return
-	take_damage(attacker.ATTACK_AP)
+	receive_attack_damage(attacker.ATTACK_AP, attacker)
 	Sfx.play("hit")
+
+
+func receive_attack_damage(ap: int, attacker: Node2D) -> void:
+	if dead or hitstun > 0.0:
+		return
+	take_damage(ap)
+	if dead:
+		return
+	var knockback_dir := signf(global_position.x - attacker.global_position.x)
+	if is_zero_approx(knockback_dir):
+		var attacker_facing: int = int(attacker.get("facing"))
+		knockback_dir = -float(attacker_facing)
+	velocity.x = knockback_dir * HITSTUN_KNOCKBACK
+	velocity.y = -70.0
+	hitstun = HITSTUN_TIME
+	modulate.a = HITSTUN_ALPHA
 
 
 func _get_stomped(body: Node2D) -> void:
@@ -84,6 +113,7 @@ func _get_stomped(body: Node2D) -> void:
 	set_physics_process(false)
 	velocity = Vector2.ZERO
 	hurt.set_deferred("monitoring", false)
+	modulate.a = 1.0
 	Sfx.play("stomp")
 	emit_signal("stomped")
 	var tw := create_tween()
