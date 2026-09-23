@@ -54,21 +54,11 @@ func _draw() -> void:
 			)
 
 	var attack_area := owner.get_node_or_null("AttackArea") as Area2D
-	if attack_area != null:
-		var attack_shape := attack_area.get_node_or_null("CollisionShape2D") as CollisionShape2D
-		if attack_shape != null:
-			var attack_color := ATTACK_COLOR
-			var attack_outline := ATTACK_OUTLINE
-			if not attack_area.monitoring:
-				attack_color.a = 0.0
-				attack_outline.a = 0.42
-			_draw_collision_shape(
-				attack_shape.shape,
-				attack_area.position + attack_shape.position,
-				attack_area.rotation + attack_shape.rotation,
-				attack_color,
-				attack_outline
-			)
+	if attack_area == null or not owner.has_method("is_attack_active") or not owner.is_attack_active():
+		return
+	var attack_shape := attack_area.get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if attack_shape != null:
+		_draw_collision_shape(attack_shape.shape, attack_area.position + attack_shape.position, attack_area.rotation + attack_shape.rotation, ATTACK_COLOR, ATTACK_OUTLINE)
 
 
 func _draw_collision_shape(shape: Shape2D, offset: Vector2, rotation: float, fill: Color, outline: Color) -> void:
