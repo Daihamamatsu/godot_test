@@ -698,10 +698,15 @@ func _enemy_visual_and_attack_ok() -> bool:
 		and enemy.ATTACK_ACTIVE_START == 18 \
 		and enemy.ATTACK_ACTIVE_END == 20 \
 		and enemy.ATTACK_RECOVERY_END == 26 \
-		and enemy.DEATH_FRAMES == 10
+		and enemy.ATTACK_COOLDOWN_FRAMES == 180 \
+		and enemy.DEATH_FRAMES == 90
 	var detection_ok: bool = enemy.DETECTION_DISTANCE == 180.0 and enemy.DETECTION_VERTICAL_DISTANCE == 96.0
 	var collision_ok: bool = attack_area.collision_layer == 16 and attack_area.collision_mask == 2 and hurt_box.collision_layer == 2
-	return textures_ok and timing_ok and detection_ok and collision_ok
+	var normal_scale_ok: bool = absf(normal.scale.x - 0.375) < 0.001 \
+		and (absf(normal.scale.y - 0.4375) < 0.001 or absf(normal.scale.y - 0.385) < 0.001)
+	var panti_scale_ok: bool = panti.scale.x >= 0.0 and panti.scale.y >= 0.0
+	var scale_ok: bool = normal_scale_ok and panti_scale_ok
+	return textures_ok and timing_ok and detection_ok and collision_ok and scale_ok
 
 
 func _damage_system_ok() -> bool:

@@ -29,17 +29,21 @@ shape = SubResource("body_shape")
 
 [node name="NormalSprite" type="Sprite2D" parent="Visual"]
 texture = ExtResource("2")
+scale = Vector2(0.375, 0.4375)
 
 [node name="AttackSprite" type="Sprite2D" parent="Visual"]
 texture = ExtResource("3")
+scale = Vector2(0.375, 0.4375)
 visible = false
 
 [node name="PantiSprite" type="Sprite2D" parent="Visual"]
 texture = ExtResource("4")
+scale = Vector2(0.4937, 0.4375)
 visible = false
 
 [node name="DeathSprite" type="Sprite2D" parent="Visual"]
 texture = ExtResource("5")
+scale = Vector2(0.375, 0.4375)
 modulate = Color(1, 1, 1, 0.5)
 visible = false
 
