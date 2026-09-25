@@ -11,7 +11,7 @@ Godot 4.7.2 で作成した 2D プラットフォーマです。
 - 背景はパララックスレイヤーで構成し、空の遠景、中間距離の森、プレイヤーがいる近景の距離感を表現します。
 - 効果音は外部音声ファイルを使わず、`autoload/sfx.gd` の `Sfx` オートロードがコードで生成します。
 - 外部プラグイン、アセットパック、外部フォントは使用していません。背景、プレイヤー、敵にはローカルのPNGを使用します。
-- `assets/`と`assets_backup/`はGit管理対象外です。現在は同一開発環境でのローカル運用を前提とし、PR完了後に`assets_backup/assets/`へ素材をバックアップします。
+- `assets/`と`assets_backup/`はGit管理対象外です。現在は同一開発環境でのローカル運用を前提とし、PR完了後に実行日時付きの`assets_backup/assets_<YYYYMMDD_HHMMSS>/`へ素材をバックアップします。
 
 ## 必要環境
 
@@ -123,6 +123,6 @@ assets/enemy/pien/
 7. `origin/main`との差分、変更ファイル、重複コミットを確認する
 8. 本文に `Closes #N` を含む Pull Request を作成する
 9. レビュー後に `main` へマージする
-10. PR完了後、`assets/`を`assets_backup/assets/`へバックアップする
+10. PR完了後、`assets/`を実行日時付きの`assets_backup/assets_<YYYYMMDD_HHMMSS>/`へバックアップする
 
 `main` への直接コミット、force push、無関係な変更の混在は行いません。

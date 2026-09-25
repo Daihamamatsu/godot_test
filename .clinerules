@@ -46,7 +46,7 @@
 - `assets/`はGit追跡対象外のローカル素材として扱う
 - `assets_backup/`もGit追跡対象外とする
 - Godotのシーン・スクリプトはローカルの`res://assets/...`を参照するため、現在の開発環境では`assets/`を保持する
-- PR完了後、`assets/`全体を`assets_backup/assets/`へコピーし、内容が一致することを確認する
+- PR完了後、`assets/`全体を`assets_backup/assets_<YYYYMMDD_HHMMSS>/`へコピーし、内容が一致することを確認する
 - `assets_backup/`はGitHubへ保存されないため、必要に応じて別の保存先にもバックアップする
 - 別環境での素材復元・存在確認・セットアップ手順は、別Issueで扱う
 
