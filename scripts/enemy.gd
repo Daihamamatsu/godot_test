@@ -20,8 +20,11 @@ const ATTACK_GROW_FRAMES := 8
 const ATTACK_ACTIVE_START := 18
 const ATTACK_ACTIVE_END := 20
 const ATTACK_RECOVERY_END := 26
-const DEATH_FRAMES := 10
+const ATTACK_COOLDOWN_FRAMES := 180
+const DEATH_FRAMES := 90
 const ENEMY_ATTACK_AP := 25
+const NORMAL_SCALE := Vector2(0.375, 0.4375)
+const PANTI_SCALE := Vector2(0.4937, 0.4375)
 
 @onready var normal_sprite: Sprite2D = $Visual/NormalSprite
 @onready var attack_sprite: Sprite2D = $Visual/AttackSprite
@@ -36,6 +39,7 @@ var dead := false
 var hp := MAX_HP
 var hitstun := 0.0
 var attack_frame := -1
+var attack_cooldown_frame := 0
 var death_frame := -1
 var _hitbox_debug_draw: Node2D
 var _attack_hit_targets: Array[Node] = []
@@ -69,8 +73,10 @@ func _physics_process(dt: float) -> void:
 	if hitstun > 0.0:
 		_update_hitstun(dt)
 		return
+	if attack_cooldown_frame > 0:
+		attack_cooldown_frame -= 1
 
-	if _player_in_front():
+	if attack_cooldown_frame <= 0 and _player_in_front():
 		_start_attack()
 		return
 
@@ -97,7 +103,7 @@ func _physics_process(dt: float) -> void:
 
 func _update_normal_visual() -> void:
 	var cycle_frame := Engine.get_physics_frames() % (NORMAL_ANIMATION_FRAMES * 2)
-	normal_sprite.scale = Vector2(1.0, 0.88 if cycle_frame < NORMAL_ANIMATION_FRAMES else 1.0)
+	normal_sprite.scale = Vector2(NORMAL_SCALE.x, NORMAL_SCALE.y * (0.88 if cycle_frame < NORMAL_ANIMATION_FRAMES else 1.0))
 	normal_sprite.visible = true
 	attack_sprite.visible = false
 	panti_sprite.visible = false
@@ -119,30 +125,32 @@ func _start_attack() -> void:
 	attack_frame = 0
 	_attack_hit_targets.clear()
 	velocity = Vector2.ZERO
-	normal_sprite.visible = false
+	normal_sprite.visible = true
 	attack_sprite.visible = true
 	panti_sprite.visible = false
 	death_sprite.visible = false
 	attack_area.monitoring = false
-	attack_sprite.scale = Vector2.ONE
+	attack_sprite.scale = NORMAL_SCALE
+	normal_sprite.scale = NORMAL_SCALE
+	panti_sprite.scale = Vector2.ZERO
+	_update_attack_direction()
 	_apply_facing()
 
 
 func _update_attack() -> void:
 	velocity = Vector2.ZERO
+	normal_sprite.visible = true
 	attack_sprite.visible = attack_frame < ATTACK_PREPARE_FRAMES
 	panti_sprite.visible = attack_frame >= ATTACK_PREPARE_FRAMES and attack_frame <= ATTACK_RECOVERY_END
-	normal_sprite.visible = false
 	death_sprite.visible = false
 	attack_area.monitoring = attack_frame >= ATTACK_ACTIVE_START and attack_frame <= ATTACK_ACTIVE_END
-	attack_sprite.scale = Vector2.ONE
+	attack_sprite.scale = NORMAL_SCALE
 
 	if panti_sprite.visible:
 		var grow_frame := clampi(attack_frame - ATTACK_PREPARE_FRAMES + 1, 1, ATTACK_GROW_FRAMES)
 		var grow := float(grow_frame) / float(ATTACK_GROW_FRAMES)
-		panti_sprite.scale = Vector2.ONE * grow
-		panti_sprite.position.x = -92.0 * float(dir)
-		attack_area.position.x = -92.0 * float(dir)
+		panti_sprite.scale = PANTI_SCALE * grow
+		_update_attack_direction()
 		_apply_facing()
 	if attack_area.monitoring:
 		_resolve_attack_overlaps()
@@ -150,9 +158,17 @@ func _update_attack() -> void:
 	attack_frame += 1
 	if attack_frame > ATTACK_RECOVERY_END:
 		attack_frame = -1
+		attack_cooldown_frame = ATTACK_COOLDOWN_FRAMES
 		attack_area.set_deferred("monitoring", false)
 		panti_sprite.visible = false
+		attack_sprite.visible = false
 		_update_normal_visual()
+
+
+func _update_attack_direction() -> void:
+	# dirと同じ側を敵の正面として、パンチ画像と攻撃判定を同じ位置へ置く。
+	panti_sprite.position.x = 92.0 * float(dir)
+	attack_area.position.x = 92.0 * float(dir)
 
 
 func _resolve_attack_overlaps() -> void:
@@ -220,6 +236,12 @@ func _on_hurt_area_entered(area: Area2D) -> void:
 func receive_attack_damage(ap: int, attacker: Node2D) -> void:
 	if dead or hitstun > 0.0:
 		return
+	var attacker_delta_x := attacker.global_position.x - global_position.x
+	if not is_zero_approx(attacker_delta_x):
+		dir = 1 if attacker_delta_x > 0.0 else -1
+	else:
+		dir = int(attacker.get("facing"))
+	_apply_facing()
 	take_damage(ap)
 	if dead:
 		return
@@ -258,6 +280,7 @@ func _begin_death() -> void:
 	dead = true
 	death_frame = 0
 	attack_frame = -1
+	attack_cooldown_frame = 0
 	attack_area.set_deferred("monitoring", false)
 	normal_sprite.visible = false
 	attack_sprite.visible = false
