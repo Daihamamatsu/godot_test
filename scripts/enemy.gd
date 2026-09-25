@@ -133,6 +133,7 @@ func _start_attack() -> void:
 	attack_sprite.scale = NORMAL_SCALE
 	normal_sprite.scale = NORMAL_SCALE
 	panti_sprite.scale = Vector2.ZERO
+	_update_attack_direction()
 	_apply_facing()
 
 
@@ -143,14 +144,13 @@ func _update_attack() -> void:
 	panti_sprite.visible = attack_frame >= ATTACK_PREPARE_FRAMES and attack_frame <= ATTACK_RECOVERY_END
 	death_sprite.visible = false
 	attack_area.monitoring = attack_frame >= ATTACK_ACTIVE_START and attack_frame <= ATTACK_ACTIVE_END
-	attack_sprite.scale = Vector2.ONE
+	attack_sprite.scale = NORMAL_SCALE
 
 	if panti_sprite.visible:
 		var grow_frame := clampi(attack_frame - ATTACK_PREPARE_FRAMES + 1, 1, ATTACK_GROW_FRAMES)
 		var grow := float(grow_frame) / float(ATTACK_GROW_FRAMES)
 		panti_sprite.scale = PANTI_SCALE * grow
-		panti_sprite.position.x = -92.0 * float(dir)
-		attack_area.position.x = -92.0 * float(dir)
+		_update_attack_direction()
 		_apply_facing()
 	if attack_area.monitoring:
 		_resolve_attack_overlaps()
@@ -163,6 +163,12 @@ func _update_attack() -> void:
 		panti_sprite.visible = false
 		attack_sprite.visible = false
 		_update_normal_visual()
+
+
+func _update_attack_direction() -> void:
+	# dirと同じ側を敵の正面として、パンチ画像と攻撃判定を同じ位置へ置く。
+	panti_sprite.position.x = 92.0 * float(dir)
+	attack_area.position.x = 92.0 * float(dir)
 
 
 func _resolve_attack_overlaps() -> void:
@@ -230,6 +236,12 @@ func _on_hurt_area_entered(area: Area2D) -> void:
 func receive_attack_damage(ap: int, attacker: Node2D) -> void:
 	if dead or hitstun > 0.0:
 		return
+	var attacker_delta_x := attacker.global_position.x - global_position.x
+	if not is_zero_approx(attacker_delta_x):
+		dir = 1 if attacker_delta_x > 0.0 else -1
+	else:
+		dir = int(attacker.get("facing"))
+	_apply_facing()
 	take_damage(ap)
 	if dead:
 		return

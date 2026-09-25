@@ -704,9 +704,20 @@ func _enemy_visual_and_attack_ok() -> bool:
 	var collision_ok: bool = attack_area.collision_layer == 16 and attack_area.collision_mask == 2 and hurt_box.collision_layer == 2
 	var normal_scale_ok: bool = absf(normal.scale.x - 0.375) < 0.001 \
 		and (absf(normal.scale.y - 0.4375) < 0.001 or absf(normal.scale.y - 0.385) < 0.001)
+	var attack_scale_ok: bool = absf(attack.scale.x - 0.375) < 0.001 and absf(attack.scale.y - 0.4375) < 0.001
 	var panti_scale_ok: bool = panti.scale.x >= 0.0 and panti.scale.y >= 0.0
-	var scale_ok: bool = normal_scale_ok and panti_scale_ok
-	return textures_ok and timing_ok and detection_ok and collision_ok and scale_ok
+	var original_dir: int = enemy.dir
+	enemy.dir = -1
+	enemy._update_attack_direction()
+	var left_direction_ok: bool = panti.position.x < 0.0 and attack_area.position.x < 0.0
+	enemy.dir = 1
+	enemy._update_attack_direction()
+	var right_direction_ok: bool = panti.position.x > 0.0 and attack_area.position.x > 0.0
+	enemy.dir = original_dir
+	enemy._update_attack_direction()
+	var direction_ok: bool = left_direction_ok and right_direction_ok
+	var scale_ok: bool = normal_scale_ok and attack_scale_ok and panti_scale_ok
+	return textures_ok and timing_ok and detection_ok and collision_ok and scale_ok and direction_ok
 
 
 func _damage_system_ok() -> bool:
@@ -716,6 +727,13 @@ func _damage_system_ok() -> bool:
 	var enemy := enemies[0]
 	var player_hp_before: int = player.hp
 	var enemy_position_before: Vector2 = enemy.global_position
+	var facing_before: int = enemy.dir
+	player.global_position = enemy.global_position + Vector2(150.0, 0.0)
+	enemy.dir = -1
+	enemy.receive_attack_damage(0, player)
+	var facing_player_ok: bool = enemy.dir == 1
+	enemy.hitstun = 0.0
+	enemy.dir = facing_before
 	player.global_position = enemy.global_position + Vector2(0.0, 150.0)
 	enemy._on_hurt_body_entered(player)
 	var contact_damage_removed: bool = player.hp == player_hp_before
@@ -724,7 +742,7 @@ func _damage_system_ok() -> bool:
 	player.respawn(SPAWN)
 	enemy.take_damage(enemy.STOMP_AP)
 	var enemy_damage_ok: bool = enemy.hp == 50 and not enemy.dead
-	return contact_damage_removed and enemy_damage_ok
+	return contact_damage_removed and enemy_damage_ok and facing_player_ok
 
 
 func _attack_system_ok() -> bool:
