@@ -502,6 +502,7 @@ func _run_test_step() -> void:
 			_check(_player_walk_sprite_ok(), "player-sprite")
 			_check(_player_collision_ok(), "player-collision")
 			_check(_enemy_collision_ok(), "enemy-collision")
+			_check(_enemy_visual_and_attack_ok(), "enemy-pien-motion")
 			_check(_hitbox_visualization_nodes_ok(), "hitbox-visualization-nodes")
 			_check(_hitbox_toggle_ok(), "hitbox-toggle")
 			_check(player.MAX_HP == 100 and player.hp == 100, "player-hp")
@@ -677,6 +678,32 @@ func _enemy_hp_ok() -> bool:
 	return enemy.MAX_HP == 100 and enemy.hp == 100 and enemy.STOMP_AP == 50 and enemy.get_node_or_null("HPBar") is ProgressBar and enemy.get_node_or_null("Hurt") is Area2D
 
 
+func _enemy_visual_and_attack_ok() -> bool:
+	var enemies := get_tree().get_nodes_in_group("enemy")
+	if enemies.is_empty():
+		return false
+	var enemy := enemies[0]
+	var normal := enemy.get_node_or_null("Visual/NormalSprite") as Sprite2D
+	var attack := enemy.get_node_or_null("Visual/AttackSprite") as Sprite2D
+	var panti := enemy.get_node_or_null("Visual/PantiSprite") as Sprite2D
+	var death := enemy.get_node_or_null("Visual/DeathSprite") as Sprite2D
+	var attack_area := enemy.get_node_or_null("AttackArea") as Area2D
+	var hurt_box := player.get_node_or_null("HurtBox") as Area2D
+	if normal == null or attack == null or panti == null or death == null or attack_area == null or hurt_box == null:
+		return false
+	var textures_ok: bool = normal.texture != null and attack.texture != null and panti.texture != null and death.texture != null
+	var timing_ok: bool = enemy.NORMAL_ANIMATION_FRAMES == 30 \
+		and enemy.ATTACK_PREPARE_FRAMES == 10 \
+		and enemy.ATTACK_GROW_FRAMES == 8 \
+		and enemy.ATTACK_ACTIVE_START == 18 \
+		and enemy.ATTACK_ACTIVE_END == 20 \
+		and enemy.ATTACK_RECOVERY_END == 26 \
+		and enemy.DEATH_FRAMES == 10
+	var detection_ok: bool = enemy.DETECTION_DISTANCE == 180.0 and enemy.DETECTION_VERTICAL_DISTANCE == 96.0
+	var collision_ok: bool = attack_area.collision_layer == 16 and attack_area.collision_mask == 2 and hurt_box.collision_layer == 2
+	return textures_ok and timing_ok and detection_ok and collision_ok
+
+
 func _damage_system_ok() -> bool:
 	var enemies := get_tree().get_nodes_in_group("enemy")
 	if enemies.is_empty():
@@ -708,7 +735,7 @@ func _attack_system_ok() -> bool:
 		return false
 	var frames_ok: bool = attack_sprite.sprite_frames != null and attack_sprite.sprite_frames.get_frame_count("attack") == player.ATTACK_FRAME_COUNT
 	var active_window_ok: bool = player.ATTACK_ACTIVE_START == 7 and player.ATTACK_ACTIVE_END == 8 and player.ATTACK_ACTIVE_END - player.ATTACK_ACTIVE_START + 1 == 2
-	var collision_ok: bool = attack_area.collision_layer == 8 and attack_area.collision_mask == 4 and enemy_hurt.collision_layer == 4 and enemy_hurt.collision_mask == 10 and player_hurt.collision_mask == 4
+	var collision_ok: bool = attack_area.collision_layer == 8 and attack_area.collision_mask == 4 and enemy_hurt.collision_layer == 4 and enemy_hurt.collision_mask == 10 and player_hurt.collision_mask == 20
 	var hp_before: int = enemy.hp
 	player.start_attack()
 	attack_area.monitoring = true

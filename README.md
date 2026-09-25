@@ -6,7 +6,8 @@ Godot 4.7.2 で作成した 2D プラットフォーマです。
 ## ビジュアルとサウンド
 
 - プレイヤーの歩行アニメーションは、`assets/player/walk/` にある 14 枚の PNG フレームを使用します。キック攻撃は `assets/player/attack/` の 21 枚の PNG フレームを使用します。
-- 遠景の丘、地形、敵、コイン、ゴールなどは `Polygon2D` などを使ってプロシージャルに描画し、中景の森は `assets/background/midground_forest.png` を横方向にタイル配置します。
+- 敵キャラクターは `assets/enemy/pien/` の `pien.png`、`korae.png`、`panti.png`、`namida.png` を使用します。この敵素材は本Issueで承認した例外として導入しています。
+- 遠景の丘、地形、コイン、ゴールなどは `Polygon2D` などを使ってプロシージャルに描画し、中景の森は `assets/background/midground_forest.png` を横方向にタイル配置します。
 - 背景はパララックスレイヤーで構成し、空の遠景、中間距離の森、プレイヤーがいる近景の距離感を表現します。
 - 効果音は外部音声ファイルを使わず、`autoload/sfx.gd` の `Sfx` オートロードがコードで生成します。
 - 外部プラグイン、アセットパック、外部フォントは使用していません。背景とプレイヤーにはプロジェクト内の PNG を使用します。
@@ -65,6 +66,9 @@ EXIT_CODE=0
 - ジャンプバッファ、コヨーテタイム、可変ジャンプ高度
 - 14 フレームの歩行アニメーション
 - 巡回する敵と、壁・崖での方向転換
+- Pien敵の正面索敵攻撃（正面180px以内・上下差96px以内）
+- Pien敵の攻撃予備10フレーム、panti拡大8フレーム、攻撃判定3フレーム、残心6フレーム
+- Pien敵のHP0時の半透明表示10フレーム後の消滅
 - プレイヤーと敵のHP/AP制ダメージ
 - プレイヤーHPバーと敵HPバー
 - 敵の踏みつけ(50 AP)とプレイヤーのキック攻撃(25 AP)
@@ -97,6 +101,8 @@ assets/player/walk/
   walk_01.png ～ walk_14.png
 assets/player/attack/
   attack_01.png ～ attack_21.png
+assets/enemy/pien/
+  pien.png / korae.png / panti.png / namida.png
 ```
 
 `.uid` ファイルは Godot がスクリプトやリソースを識別するためのサイドカーファイルで、Git 管理対象です。
