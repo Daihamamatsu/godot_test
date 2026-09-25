@@ -2,6 +2,10 @@
 .godot/
 *.tmp
 
+# ローカル専用のゲーム素材とバックアップ
+/assets/
+/assets_backup/
+
 # Imported translations (auto-generated)
 *.trans
 

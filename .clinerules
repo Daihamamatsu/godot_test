@@ -35,6 +35,20 @@
 - Issue 1 個 = PR 1 個。無関係な変更を混ぜ込まない
 - force push をしない
 - PR に修正が入った場合は、同じブランチに修正を積んで push する(新しいブランチを作らない)
+- 同じ機能のOpen IssueまたはOpen PRがある場合、新しいIssue・ブランチ・PRを作らず既存PRへ修正を積む
+- 新しいIssueを作成する前に、同じ機能のOpen Issue・Open PRを確認する
+- 同一機能のOpen PRを複数作成しない
+- 新規PR作成前に`origin/main`との差分・変更ファイル・重複コミットを確認する
+- 既存PRがMerged済みの場合に限り、最新の`origin/main`から新しいIssue・ブランチ・PRを作成する
+
+## アセット管理
+
+- `assets/`はGit追跡対象外のローカル素材として扱う
+- `assets_backup/`もGit追跡対象外とする
+- Godotのシーン・スクリプトはローカルの`res://assets/...`を参照するため、現在の開発環境では`assets/`を保持する
+- PR完了後、`assets/`全体を`assets_backup/assets_<YYYYMMDD_HHMMSS>/`へコピーし、内容が一致することを確認する
+- `assets_backup/`はGitHubへ保存されないため、必要に応じて別の保存先にもバックアップする
+- 別環境での素材復元・存在確認・セットアップ手順は、別Issueで扱う
 
 ## コミットメッセージ規約
 
@@ -91,6 +105,8 @@
 - `git diff --check` は、今回の変更対象ファイルに限定して実行する。既存の未関連変更や `.import` ファイルの CRLF 警告を今回の変更エラーと混同しない。
 - 確認コマンドが長時間終了しない場合に備え、Git Bash の `timeout` で上限時間を設定する。タイムアウト発生時は成功扱いにせず、処理を分割して原因を確認する。
 - `git diff --check` を対象指定なしで実行しない。今回の変更対象が `.clinerules` だけなら `git diff --check -- .clinerules` のように対象を明示する。
+- PR作成前に`git log --oneline origin/main..HEAD`と`git diff --stat origin/main...HEAD`を確認し、既存PRの重複コミットや無関係な変更を含めない
+- Godotスモークテスト前にローカル`assets/`が存在することを確認する。素材がない場合は成功扱いにしない
 
 例:
 
