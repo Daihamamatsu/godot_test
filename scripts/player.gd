@@ -48,6 +48,7 @@ var _stretch := Vector2.ONE
 
 func _ready() -> void:
 	add_to_group("player")
+	$HurtBox.add_to_group("player_hurt")
 	attack_area.add_to_group("player_attack")
 	attack_area.monitoring = false
 	attack_sprite.visible = false
