@@ -785,13 +785,21 @@ func _enemy_visual_and_attack_ok() -> bool:
 	var original_dir: int = enemy.dir
 	enemy.dir = -1
 	enemy._update_attack_direction()
+	enemy._apply_facing()
 	var left_direction_ok: bool = panti.position.x < 0.0 and attack_area.position.x < 0.0
+	# 元方向で親指が右寄り。dir=-1(左向き)は元方向=親指右寄り → flip_h=false
+	var left_flip_ok: bool = panti.flip_h == false
 	enemy.dir = 1
 	enemy._update_attack_direction()
+	enemy._apply_facing()
 	var right_direction_ok: bool = panti.position.x > 0.0 and attack_area.position.x > 0.0
+	# dir=1(右向き)は反転=親指左寄り → flip_h=true
+	var right_flip_ok: bool = panti.flip_h == true
 	enemy.dir = original_dir
 	enemy._update_attack_direction()
-	var direction_ok: bool = left_direction_ok and right_direction_ok
+	enemy._apply_facing()
+	var flip_ok: bool = left_flip_ok and right_flip_ok
+	var direction_ok: bool = left_direction_ok and right_direction_ok and flip_ok
 	var scale_ok: bool = normal_scale_ok and attack_scale_ok and panti_scale_ok
 	return textures_ok and timing_ok and detection_ok and collision_ok and scale_ok and direction_ok
 

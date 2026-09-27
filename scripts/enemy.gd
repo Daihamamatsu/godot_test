@@ -329,6 +329,8 @@ func _update_death() -> void:
 
 func _apply_facing() -> void:
 	attack_sprite.flip_h = dir > 0
+	# パンチ画像(panti.png)は元方向で親指が右寄り。右向きの敵は親指を左寄り(前方へ向いて握る)にしたいため、
+	# 親指が右寄り=元方向の dir<0、親指が左寄り=反転の dir>0。 dir と同じ方向の flip_h を使う。
 	panti_sprite.flip_h = dir > 0
 	normal_sprite.flip_h = dir > 0
 	death_sprite.flip_h = dir > 0
