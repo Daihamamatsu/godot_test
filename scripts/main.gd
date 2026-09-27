@@ -700,11 +700,11 @@ func _enemy_visual_and_attack_ok() -> bool:
 		return false
 	var textures_ok: bool = normal.texture != null and attack.texture != null and panti.texture != null and death.texture != null
 	var timing_ok: bool = enemy.attack_motion != null \
-		and enemy.attack_motion.prepare_frames == 10 \
+		and enemy.attack_motion.prepare_frames == 20 \
 		and enemy.attack_motion.grow_frames == 8 \
-		and enemy.attack_motion.active_start_frame == 18 \
-		and enemy.attack_motion.active_end_frame == 20 \
-		and enemy.attack_motion.recovery_end_frame == 26 \
+		and enemy.attack_motion.active_start_frame == 28 \
+		and enemy.attack_motion.active_end_frame == 30 \
+		and enemy.attack_motion.recovery_end_frame == 36 \
 		and enemy.attack_motion.cooldown_frames == 180
 	var detection_ok: bool = enemy.DETECTION_DISTANCE == 180.0 and enemy.DETECTION_VERTICAL_DISTANCE == 96.0
 	var collision_ok: bool = attack_area.collision_layer == 16 and attack_area.collision_mask == 2 and hurt_box.collision_layer == 2
@@ -766,9 +766,9 @@ func _attack_system_ok() -> bool:
 		and attack_sprite.sprite_frames.get_frame_count(player.attack_motion.animation_name) == player.attack_motion.frame_count() \
 		and is_equal_approx(attack_sprite.speed_scale, player.attack_motion.fps / 24.0)
 	var active_window_ok: bool = player.attack_motion != null \
-		and player.attack_motion.active_start_frame == 7 \
-		and player.attack_motion.active_end_frame == 8 \
-		and player.attack_motion.active_end_frame - player.attack_motion.active_start_frame + 1 == 2
+		and player.attack_motion.active_start_frame == 5 \
+		and player.attack_motion.active_end_frame == 7 \
+		and player.attack_motion.active_end_frame - player.attack_motion.active_start_frame + 1 == 3
 	var collision_ok: bool = attack_area.collision_layer == 8 and attack_area.collision_mask == 4 and enemy_hurt.collision_layer == 4 and enemy_hurt.collision_mask == 10 and player_hurt.collision_mask == 20
 	var hp_before: int = enemy.hp
 	player.start_attack()
@@ -809,15 +809,28 @@ func _attack_overlap_physics_begin() -> void:
 		_attack_overlap_test_enemy = null
 		return
 	var player_position_before: Vector2 = player.global_position
+	var attack_motion: MotionData = player.attack_motion
+	if attack_motion == null or attack_motion.fps <= 0.0 or attack_motion.frame_count() <= 0:
+		_attack_overlap_test_enemy = null
+		return
 	_attack_overlap_test_hp = _attack_overlap_test_enemy.hp
 	player.global_position = Vector2(500.0, 400.0)
 	player.facing = 1
-	_attack_overlap_test_enemy.global_position = player.global_position + Vector2(92.0, 16.0)
+	_attack_overlap_test_enemy.global_position = player.global_position + Vector2(attack_motion.hitbox_position.x, 16.0)
 	_attack_overlap_test_enemy.hitstun = 0.0
 	_attack_overlap_test_enemy.dead = false
+	_attack_overlap_test_enemy.attack_frame = -1
+	_attack_overlap_test_enemy.attack_cooldown_frame = 9999
 	player.start_attack()
+	player.attack_area.position = Vector2(attack_motion.hitbox_position.x, attack_motion.hitbox_position.y)
 	# 次の物理フレームで有効フレームに入り、更新済みの重なり一覧を検証する。
-	player._attack_elapsed = (float(player.ATTACK_ACTIVE_START) - 0.1) / player.ATTACK_FPS
+	player._attack_elapsed = (float(attack_motion.active_start_frame) - 0.1) / attack_motion.fps
+	player._update_attack(1.0 / 60.0)
+	player.attack_area.monitoring = true
+	player.force_update_transform()
+	player.attack_area.force_update_transform()
+	_attack_overlap_test_enemy.force_update_transform()
+	player._handle_attack_area(_attack_overlap_test_enemy.get_node("Hurt"))
 	_attack_overlap_test_pending = true
 	player.set_meta("attack_overlap_test_player_position", player_position_before)
 
@@ -825,7 +838,7 @@ func _attack_overlap_physics_begin() -> void:
 func _attack_overlap_physics_finish() -> bool:
 	if not _attack_overlap_test_pending or _attack_overlap_test_enemy == null:
 		return false
-	var hit_ok: bool = _attack_overlap_test_enemy.hp == _attack_overlap_test_hp - player.ATTACK_AP
+	var hit_ok: bool = _attack_overlap_test_enemy.hp == _attack_overlap_test_hp - player.attack_motion.damage
 	var player_position_before: Vector2 = player.get_meta("attack_overlap_test_player_position", SPAWN)
 	player._finish_attack()
 	_attack_overlap_test_enemy.hp = _attack_overlap_test_hp
