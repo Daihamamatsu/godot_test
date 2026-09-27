@@ -787,14 +787,14 @@ func _enemy_visual_and_attack_ok() -> bool:
 	enemy._update_attack_direction()
 	enemy._apply_facing()
 	var left_direction_ok: bool = panti.position.x < 0.0 and attack_area.position.x < 0.0
-	# パンチ画像は dir と逆方向に反転 (dir=-1 で flip_h=true)
-	var left_flip_ok: bool = panti.flip_h == true
+	# 元方向で親指が右寄り。dir=-1(左向き)は元方向=親指右寄り → flip_h=false
+	var left_flip_ok: bool = panti.flip_h == false
 	enemy.dir = 1
 	enemy._update_attack_direction()
 	enemy._apply_facing()
 	var right_direction_ok: bool = panti.position.x > 0.0 and attack_area.position.x > 0.0
-	# パンチ画像は dir と逆方向に反転 (dir=1 で flip_h=false)
-	var right_flip_ok: bool = panti.flip_h == false
+	# dir=1(右向き)は反転=親指左寄り → flip_h=true
+	var right_flip_ok: bool = panti.flip_h == true
 	enemy.dir = original_dir
 	enemy._update_attack_direction()
 	enemy._apply_facing()
