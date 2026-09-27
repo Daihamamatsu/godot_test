@@ -66,6 +66,7 @@ EXIT_CODE=0
 - 左右移動とジャンプ
 - ジャンプバッファ、コヨーテタイム、可変ジャンプ高度
 - 14 フレームの歩行アニメーション
+- 歩行・プレイヤー攻撃・敵攻撃を Resource として編集できるモーションデータ
 - 巡回する敵と、壁・崖での方向転換
 - Pien敵の正面索敵攻撃（正面180px以内・上下差96px以内）
 - Pien敵の攻撃予備10フレーム、panti拡大8フレーム、攻撃判定3フレーム、残心6フレーム
@@ -94,10 +95,19 @@ scenes/
   coin.tscn
 
 scripts/
+  motion_data.gd
   main.gd
   player.gd
   enemy.gd
   coin.gd
+
+data/motions/
+  player_walk.tres
+  player_attack.tres
+  enemy_attack.tres
+
+docs/
+  motion-tuning.md
 
 autoload/
   sfx.gd
@@ -111,6 +121,11 @@ assets/enemy/pien/
 ```
 
 `.uid` ファイルは Godot がスクリプトやリソースを識別するためのサイドカーファイルで、Git 管理対象です。
+
+## モーション調整
+
+歩行フレーム、歩行 FPS、表示倍率、攻撃力、攻撃判定フレーム、判定位置・サイズなどは、`data/motions/` の `.tres` ファイルから調整できます。
+詳しい編集手順は [`docs/motion-tuning.md`](docs/motion-tuning.md) を参照してください。
 
 ## 開発ワークフロー
 

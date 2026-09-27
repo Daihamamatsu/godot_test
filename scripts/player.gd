@@ -21,14 +21,19 @@ const MAX_HP := 100
 const ATTACK_AP := 25
 const ATTACK_FPS := 24.0
 const ATTACK_FRAME_COUNT := 21
-# 攻撃判定は攻撃モーションの8枚目・9枚目だけ有効にする(内部フレームは0始まり)。
 const ATTACK_ACTIVE_START := 7
 const ATTACK_ACTIVE_END := 8
+
+const WALK_MOTION := preload("res://data/motions/player_walk.tres")
+const ATTACK_MOTION := preload("res://data/motions/player_attack.tres")
 
 @onready var visual: Node2D = $Visual
 @onready var walk_sprite: AnimatedSprite2D = $Visual/WalkSprite
 @onready var attack_sprite: AnimatedSprite2D = $Visual/AttackSprite
 @onready var attack_area: Area2D = $AttackArea
+
+var walk_motion: MotionData = WALK_MOTION
+var attack_motion: MotionData = ATTACK_MOTION
 
 var state: int = State.ALIVE
 var _hitbox_debug_draw: Node2D
@@ -47,6 +52,7 @@ var _stretch := Vector2.ONE
 
 
 func _ready() -> void:
+	_apply_motion_data()
 	add_to_group("player")
 	$HurtBox.add_to_group("player_hurt")
 	attack_area.add_to_group("player_attack")
@@ -56,6 +62,27 @@ func _ready() -> void:
 	_hitbox_debug_draw.name = "HitboxDebug"
 	add_child(_hitbox_debug_draw)
 	hp_changed.emit(hp, MAX_HP)
+
+
+func _apply_motion_data() -> void:
+	if walk_motion != null and walk_motion.sprite_frames != null:
+		walk_sprite.sprite_frames = walk_motion.sprite_frames
+		walk_sprite.animation = walk_motion.animation_name
+		walk_sprite.speed_scale = walk_motion.fps / 10.0
+		walk_sprite.scale = walk_motion.sprite_scale
+		walk_sprite.offset = walk_motion.sprite_offset
+		walk_sprite.sprite_frames.set_animation_loop(walk_motion.animation_name, walk_motion.loop)
+	if attack_motion != null and attack_motion.sprite_frames != null:
+		attack_sprite.sprite_frames = attack_motion.sprite_frames
+		attack_sprite.animation = attack_motion.animation_name
+		attack_sprite.speed_scale = attack_motion.fps / 24.0
+		attack_sprite.scale = attack_motion.sprite_scale
+		attack_sprite.offset = attack_motion.sprite_offset
+		attack_sprite.sprite_frames.set_animation_loop(attack_motion.animation_name, attack_motion.loop)
+	if attack_motion != null and attack_motion.hitbox_size != Vector2.ZERO:
+		var attack_shape := attack_area.get_node_or_null("CollisionShape2D") as CollisionShape2D
+		if attack_shape != null and attack_shape.shape is RectangleShape2D:
+			(attack_shape.shape as RectangleShape2D).size = attack_motion.hitbox_size
 
 
 func _physics_process(dt: float) -> void:
@@ -148,14 +175,15 @@ func _physics_process(dt: float) -> void:
 	else:
 		walk_sprite.visible = true
 		attack_sprite.visible = false
-		if absf(velocity.x) > 10.0:
+		var walking := walk_motion != null and absf(velocity.x) > walk_motion.minimum_move_speed
+		if walking:
 			if walk_sprite.animation != &"walk":
 				walk_sprite.animation = &"walk"
 			walk_sprite.play()
 		else:
 			walk_sprite.stop()
 			walk_sprite.animation = &"walk"
-			walk_sprite.frame = 0
+			walk_sprite.frame = walk_motion.idle_frame if walk_motion != null else 0
 
 	# 穴へ落下した場合。
 	if global_position.y > KILL_Y:
@@ -200,9 +228,9 @@ func start_attack() -> void:
 	_jump_buffer = 0.0
 	_attack_elapsed = 0.0
 	_attack_hit_targets.clear()
-	attack_sprite.animation = &"attack"
+	attack_sprite.animation = attack_motion.animation_name if attack_motion != null else &"attack"
 	attack_sprite.frame = 0
-	attack_sprite.speed_scale = 1.0
+	attack_sprite.speed_scale = attack_motion.fps / 24.0 if attack_motion != null else 1.0
 	attack_sprite.play()
 	Sfx.play("attack")
 
@@ -211,14 +239,17 @@ func _update_attack(dt: float) -> void:
 	if not attacking:
 		return
 	_attack_elapsed += dt
-	var frame := mini(int(_attack_elapsed * ATTACK_FPS), ATTACK_FRAME_COUNT - 1)
+	var attack_fps := attack_motion.fps if attack_motion != null else ATTACK_FPS
+	var attack_frame_count := attack_motion.frame_count() if attack_motion != null else ATTACK_FRAME_COUNT
+	var frame := mini(int(_attack_elapsed * attack_fps), attack_frame_count - 1)
 	attack_sprite.frame = frame
-	var active := frame >= ATTACK_ACTIVE_START and frame <= ATTACK_ACTIVE_END
+	var active := attack_motion.is_attack_frame(frame) if attack_motion != null else frame >= ATTACK_ACTIVE_START and frame <= ATTACK_ACTIVE_END
 	attack_area.monitoring = active
-	attack_area.position.x = facing * 92.0
+	var hitbox_position := attack_motion.hitbox_position if attack_motion != null else Vector2(92.0, 0.0)
+	attack_area.position = Vector2(facing * absf(hitbox_position.x), hitbox_position.y)
 	if active:
 		_resolve_attack_overlaps()
-	if _attack_elapsed >= float(ATTACK_FRAME_COUNT) / ATTACK_FPS:
+	if _attack_elapsed >= float(attack_frame_count) / attack_fps:
 		_finish_attack()
 
 
