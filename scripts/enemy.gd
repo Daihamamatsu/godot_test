@@ -329,7 +329,9 @@ func _update_death() -> void:
 
 func _apply_facing() -> void:
 	attack_sprite.flip_h = dir > 0
-	panti_sprite.flip_h = dir > 0
+	# パンチ画像は位置を dir で反転して配置しているため、flip は dir と逆にする
+	# (パンチは向いている方向=前方へ、指先を向くように表示する)
+	panti_sprite.flip_h = dir < 0
 	normal_sprite.flip_h = dir > 0
 	death_sprite.flip_h = dir > 0
 
