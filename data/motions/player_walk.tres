@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="MotionData" load_steps=16 format=3]
+
+[ext_resource type="Script" path="res://scripts/motion_data.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_01.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_02.png" id="3"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_03.png" id="4"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_04.png" id="5"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_05.png" id="6"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_06.png" id="7"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_07.png" id="8"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_08.png" id="9"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_09.png" id="10"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_10.png" id="11"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_11.png" id="12"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_12.png" id="13"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_13.png" id="14"]
+[ext_resource type="Texture2D" path="res://assets/player/walk/walk_14.png" id="15"]
+
+[sub_resource type="SpriteFrames" id="walk_frames"]
+animations = [{
+"frames": [{"duration": 1.0, "texture": ExtResource("2")}, {"duration": 1.0, "texture": ExtResource("3")}, {"duration": 1.0, "texture": ExtResource("4")}, {"duration": 1.0, "texture": ExtResource("5")}, {"duration": 1.0, "texture": ExtResource("6")}, {"duration": 1.0, "texture": ExtResource("7")}, {"duration": 1.0, "texture": ExtResource("8")}, {"duration": 1.0, "texture": ExtResource("9")}, {"duration": 1.0, "texture": ExtResource("10")}, {"duration": 1.0, "texture": ExtResource("11")}, {"duration": 1.0, "texture": ExtResource("12")}, {"duration": 1.0, "texture": ExtResource("13")}, {"duration": 1.0, "texture": ExtResource("14")}, {"duration": 1.0, "texture": ExtResource("15")}],
+"loop": true,
+"name": &"walk",
+"speed": 10.0
+}]
+
+[resource]
+script = ExtResource("1_script")
+animation_name = &"walk"
+sprite_frames = SubResource("walk_frames")
+sprite_scale = Vector2(1, 1)
+sprite_offset = Vector2(13.5, -0.5)
+fps = 10.0
+loop = true
+idle_frame = 0
+minimum_move_speed = 10.0

@@ -26,6 +26,10 @@ const ENEMY_ATTACK_AP := 25
 const NORMAL_SCALE := Vector2(0.375, 0.4375)
 const PANTI_SCALE := Vector2(0.4937, 0.4375)
 
+const ATTACK_MOTION := preload("res://data/motions/enemy_attack.tres")
+
+var attack_motion: MotionData = ATTACK_MOTION
+
 @onready var normal_sprite: Sprite2D = $Visual/NormalSprite
 @onready var attack_sprite: Sprite2D = $Visual/AttackSprite
 @onready var panti_sprite: Sprite2D = $Visual/PantiSprite
@@ -46,6 +50,7 @@ var _attack_hit_targets: Array[Node] = []
 
 
 func _ready() -> void:
+	_apply_motion_data()
 	add_to_group("enemy")
 	hurt.add_to_group("enemy_hurt")
 	hurt.body_entered.connect(_on_hurt_body_entered)
@@ -61,6 +66,14 @@ func _ready() -> void:
 	death_sprite.visible = false
 	_apply_facing()
 	hp_changed.emit(hp, MAX_HP)
+
+
+func _apply_motion_data() -> void:
+	if attack_motion == null:
+		return
+	var attack_shape := attack_area.get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if attack_shape != null and attack_shape.shape is RectangleShape2D and attack_motion.hitbox_size != Vector2.ZERO:
+		(attack_shape.shape as RectangleShape2D).size = attack_motion.hitbox_size
 
 
 func _physics_process(dt: float) -> void:
@@ -140,15 +153,20 @@ func _start_attack() -> void:
 func _update_attack() -> void:
 	velocity = Vector2.ZERO
 	normal_sprite.visible = true
-	attack_sprite.visible = attack_frame < ATTACK_PREPARE_FRAMES
-	panti_sprite.visible = attack_frame >= ATTACK_PREPARE_FRAMES and attack_frame <= ATTACK_RECOVERY_END
+	var prepare_frames := attack_motion.prepare_frames if attack_motion != null else ATTACK_PREPARE_FRAMES
+	var recovery_end_frame := attack_motion.recovery_end_frame if attack_motion != null else ATTACK_RECOVERY_END
+	var active_start_frame := attack_motion.active_start_frame if attack_motion != null else ATTACK_ACTIVE_START
+	var active_end_frame := attack_motion.active_end_frame if attack_motion != null else ATTACK_ACTIVE_END
+	var grow_frames := attack_motion.grow_frames if attack_motion != null else ATTACK_GROW_FRAMES
+	attack_sprite.visible = attack_frame < prepare_frames
+	panti_sprite.visible = attack_frame >= prepare_frames and attack_frame <= recovery_end_frame
 	death_sprite.visible = false
-	attack_area.monitoring = attack_frame >= ATTACK_ACTIVE_START and attack_frame <= ATTACK_ACTIVE_END
+	attack_area.monitoring = attack_frame >= active_start_frame and attack_frame <= active_end_frame
 	attack_sprite.scale = NORMAL_SCALE
 
 	if panti_sprite.visible:
-		var grow_frame := clampi(attack_frame - ATTACK_PREPARE_FRAMES + 1, 1, ATTACK_GROW_FRAMES)
-		var grow := float(grow_frame) / float(ATTACK_GROW_FRAMES)
+		var grow_frame := clampi(attack_frame - prepare_frames + 1, 1, grow_frames)
+		var grow := float(grow_frame) / float(maxi(grow_frames, 1))
 		panti_sprite.scale = PANTI_SCALE * grow
 		_update_attack_direction()
 		_apply_facing()
@@ -156,9 +174,9 @@ func _update_attack() -> void:
 		_resolve_attack_overlaps()
 
 	attack_frame += 1
-	if attack_frame > ATTACK_RECOVERY_END:
+	if attack_frame > recovery_end_frame:
 		attack_frame = -1
-		attack_cooldown_frame = ATTACK_COOLDOWN_FRAMES
+		attack_cooldown_frame = attack_motion.cooldown_frames if attack_motion != null else ATTACK_COOLDOWN_FRAMES
 		attack_area.set_deferred("monitoring", false)
 		panti_sprite.visible = false
 		attack_sprite.visible = false
@@ -167,8 +185,9 @@ func _update_attack() -> void:
 
 func _update_attack_direction() -> void:
 	# dirと同じ側を敵の正面として、パンチ画像と攻撃判定を同じ位置へ置く。
-	panti_sprite.position.x = 92.0 * float(dir)
-	attack_area.position.x = 92.0 * float(dir)
+	var hitbox_position := attack_motion.hitbox_position if attack_motion != null else Vector2(92.0, 0.0)
+	panti_sprite.position = Vector2(hitbox_position.x * float(dir), hitbox_position.y)
+	attack_area.position = Vector2(hitbox_position.x * float(dir), hitbox_position.y)
 
 
 func _resolve_attack_overlaps() -> void:
@@ -194,11 +213,13 @@ func _handle_attack_area(area: Area2D) -> void:
 	if target == null or target in _attack_hit_targets or not target.has_method("take_damage"):
 		return
 	_attack_hit_targets.append(target)
-	target.take_damage(ENEMY_ATTACK_AP)
+	target.take_damage(attack_motion.damage if attack_motion != null else ENEMY_ATTACK_AP)
 	Sfx.play("hit")
 
 
 func is_attack_active() -> bool:
+	if attack_motion != null:
+		return attack_motion.is_attack_frame(attack_frame)
 	return attack_frame >= ATTACK_ACTIVE_START and attack_frame <= ATTACK_ACTIVE_END
 
 
@@ -229,7 +250,8 @@ func _on_hurt_area_entered(area: Area2D) -> void:
 		return
 	if not attacker.consume_attack_hit(self):
 		return
-	receive_attack_damage(attacker.ATTACK_AP, attacker)
+	var attack_damage: int = attacker.attack_motion.damage if attacker.get("attack_motion") != null else attacker.ATTACK_AP
+	receive_attack_damage(attack_damage, attacker)
 	Sfx.play("hit")
 
 

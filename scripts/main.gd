@@ -604,12 +604,19 @@ func _player_walk_sprite_ok() -> bool:
 	var sprite := player.get_node_or_null("Visual/WalkSprite")
 	if sprite == null or not (sprite is AnimatedSprite2D):
 		return false
+	if player.walk_motion == null:
+		return false
 	var frames := (sprite as AnimatedSprite2D).sprite_frames
-	if frames == null or not frames.has_animation("walk"):
+	if frames == null or not frames.has_animation(player.walk_motion.animation_name):
 		return false
 	var sp := sprite as AnimatedSprite2D
-	var scale_ok := sp.scale.x == sp.scale.y and absf(sp.scale.x - 1.0) < 0.01
-	return frames.get_frame_count("walk") == 14 and frames.get_animation_loop("walk") and scale_ok
+	var animation_name: StringName = player.walk_motion.animation_name
+	var scale_ok: bool = sp.scale == player.walk_motion.sprite_scale
+	var offset_ok: bool = sp.offset == player.walk_motion.sprite_offset
+	var speed_ok := is_equal_approx(sp.speed_scale, player.walk_motion.fps / 10.0)
+	return frames.get_frame_count(animation_name) == player.walk_motion.frame_count() \
+		and frames.get_animation_loop(animation_name) == player.walk_motion.loop \
+		and scale_ok and offset_ok and speed_ok
 
 
 # プレイヤーの衝突カプセルが拡大後(半径38.5・高さ241)のものであるか
@@ -692,14 +699,13 @@ func _enemy_visual_and_attack_ok() -> bool:
 	if normal == null or attack == null or panti == null or death == null or attack_area == null or hurt_box == null:
 		return false
 	var textures_ok: bool = normal.texture != null and attack.texture != null and panti.texture != null and death.texture != null
-	var timing_ok: bool = enemy.NORMAL_ANIMATION_FRAMES == 30 \
-		and enemy.ATTACK_PREPARE_FRAMES == 10 \
-		and enemy.ATTACK_GROW_FRAMES == 8 \
-		and enemy.ATTACK_ACTIVE_START == 18 \
-		and enemy.ATTACK_ACTIVE_END == 20 \
-		and enemy.ATTACK_RECOVERY_END == 26 \
-		and enemy.ATTACK_COOLDOWN_FRAMES == 180 \
-		and enemy.DEATH_FRAMES == 90
+	var timing_ok: bool = enemy.attack_motion != null \
+		and enemy.attack_motion.prepare_frames == 10 \
+		and enemy.attack_motion.grow_frames == 8 \
+		and enemy.attack_motion.active_start_frame == 18 \
+		and enemy.attack_motion.active_end_frame == 20 \
+		and enemy.attack_motion.recovery_end_frame == 26 \
+		and enemy.attack_motion.cooldown_frames == 180
 	var detection_ok: bool = enemy.DETECTION_DISTANCE == 180.0 and enemy.DETECTION_VERTICAL_DISTANCE == 96.0
 	var collision_ok: bool = attack_area.collision_layer == 16 and attack_area.collision_mask == 2 and hurt_box.collision_layer == 2
 	var normal_scale_ok: bool = absf(normal.scale.x - 0.375) < 0.001 \
@@ -756,16 +762,22 @@ func _attack_system_ok() -> bool:
 	var enemy_hurt := enemy.get_node_or_null("Hurt") as Area2D
 	if attack_area == null or attack_sprite == null or player_hurt == null or enemy_hurt == null:
 		return false
-	var frames_ok: bool = attack_sprite.sprite_frames != null and attack_sprite.sprite_frames.get_frame_count("attack") == player.ATTACK_FRAME_COUNT
-	var active_window_ok: bool = player.ATTACK_ACTIVE_START == 7 and player.ATTACK_ACTIVE_END == 8 and player.ATTACK_ACTIVE_END - player.ATTACK_ACTIVE_START + 1 == 2
+	var frames_ok: bool = player.attack_motion != null and attack_sprite.sprite_frames != null \
+		and attack_sprite.sprite_frames.get_frame_count(player.attack_motion.animation_name) == player.attack_motion.frame_count() \
+		and is_equal_approx(attack_sprite.speed_scale, player.attack_motion.fps / 24.0)
+	var active_window_ok: bool = player.attack_motion != null \
+		and player.attack_motion.active_start_frame == 7 \
+		and player.attack_motion.active_end_frame == 8 \
+		and player.attack_motion.active_end_frame - player.attack_motion.active_start_frame + 1 == 2
 	var collision_ok: bool = attack_area.collision_layer == 8 and attack_area.collision_mask == 4 and enemy_hurt.collision_layer == 4 and enemy_hurt.collision_mask == 10 and player_hurt.collision_mask == 20
 	var hp_before: int = enemy.hp
 	player.start_attack()
 	attack_area.monitoring = true
 	enemy._on_hurt_area_entered(attack_area)
-	var hit_once: bool = enemy.hp == hp_before - player.ATTACK_AP
+	var attack_damage: int = player.attack_motion.damage
+	var hit_once: bool = enemy.hp == hp_before - attack_damage
 	enemy._on_hurt_area_entered(attack_area)
-	var hit_once_only: bool = enemy.hp == hp_before - player.ATTACK_AP
+	var hit_once_only: bool = enemy.hp == hp_before - attack_damage
 	player._finish_attack()
 	enemy.hp = hp_before
 	enemy.hp_changed.emit(enemy.hp, enemy.MAX_HP)
