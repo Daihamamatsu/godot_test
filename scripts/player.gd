@@ -20,9 +20,9 @@ const KILL_Y := 720.0
 const MAX_HP := 100
 const ATTACK_AP := 25
 const ATTACK_FPS := 24.0
-const ATTACK_FRAME_COUNT := 21
-const ATTACK_ACTIVE_START := 7
-const ATTACK_ACTIVE_END := 8
+const ATTACK_FRAME_COUNT := 11
+const ATTACK_ACTIVE_START := 5
+const ATTACK_ACTIVE_END := 7
 
 const WALK_MOTION := preload("res://data/motions/player_walk.tres")
 const ATTACK_MOTION := preload("res://data/motions/player_attack.tres")

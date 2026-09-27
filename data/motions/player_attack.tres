@@ -2,30 +2,20 @@
 
 [ext_resource type="Script" path="res://scripts/motion_data.gd" id="1_script"]
 [ext_resource type="Texture2D" path="res://assets/player/attack/attack_01.png" id="2"]
-[ext_resource type="Texture2D" path="res://assets/player/attack/attack_02.png" id="3"]
-[ext_resource type="Texture2D" path="res://assets/player/attack/attack_03.png" id="4"]
-[ext_resource type="Texture2D" path="res://assets/player/attack/attack_04.png" id="5"]
-[ext_resource type="Texture2D" path="res://assets/player/attack/attack_05.png" id="6"]
-[ext_resource type="Texture2D" path="res://assets/player/attack/attack_06.png" id="7"]
-[ext_resource type="Texture2D" path="res://assets/player/attack/attack_07.png" id="8"]
-[ext_resource type="Texture2D" path="res://assets/player/attack/attack_08.png" id="9"]
+[ext_resource type="Texture2D" path="res://assets/player/attack/attack_01.png" id="3"]
+[ext_resource type="Texture2D" path="res://assets/player/attack/attack_05.png" id="4"]
+[ext_resource type="Texture2D" path="res://assets/player/attack/attack_05.png" id="5"]
+[ext_resource type="Texture2D" path="res://assets/player/attack/attack_09.png" id="6"]
+[ext_resource type="Texture2D" path="res://assets/player/attack/attack_09.png" id="7"]
+[ext_resource type="Texture2D" path="res://assets/player/attack/attack_09.png" id="8"]
+[ext_resource type="Texture2D" path="res://assets/player/attack/attack_09.png" id="9"]
 [ext_resource type="Texture2D" path="res://assets/player/attack/attack_09.png" id="10"]
-[ext_resource type="Texture2D" path="res://assets/player/attack/attack_10.png" id="11"]
-[ext_resource type="Texture2D" path="res://assets/player/attack/attack_11.png" id="12"]
-[ext_resource type="Texture2D" path="res://assets/player/attack/attack_12.png" id="13"]
-[ext_resource type="Texture2D" path="res://assets/player/attack/attack_13.png" id="14"]
-[ext_resource type="Texture2D" path="res://assets/player/attack/attack_14.png" id="15"]
-[ext_resource type="Texture2D" path="res://assets/player/attack/attack_15.png" id="16"]
-[ext_resource type="Texture2D" path="res://assets/player/attack/attack_16.png" id="17"]
-[ext_resource type="Texture2D" path="res://assets/player/attack/attack_17.png" id="18"]
-[ext_resource type="Texture2D" path="res://assets/player/attack/attack_18.png" id="19"]
-[ext_resource type="Texture2D" path="res://assets/player/attack/attack_19.png" id="20"]
-[ext_resource type="Texture2D" path="res://assets/player/attack/attack_20.png" id="21"]
-[ext_resource type="Texture2D" path="res://assets/player/attack/attack_21.png" id="22"]
+[ext_resource type="Texture2D" path="res://assets/player/attack/attack_01.png" id="11"]
+[ext_resource type="Texture2D" path="res://assets/player/attack/attack_01.png" id="12"]
 
 [sub_resource type="SpriteFrames" id="attack_frames"]
 animations = [{
-"frames": [{"duration": 1.0, "texture": ExtResource("2")}, {"duration": 1.0, "texture": ExtResource("3")}, {"duration": 1.0, "texture": ExtResource("4")}, {"duration": 1.0, "texture": ExtResource("5")}, {"duration": 1.0, "texture": ExtResource("6")}, {"duration": 1.0, "texture": ExtResource("7")}, {"duration": 1.0, "texture": ExtResource("8")}, {"duration": 1.0, "texture": ExtResource("9")}, {"duration": 1.0, "texture": ExtResource("10")}, {"duration": 1.0, "texture": ExtResource("11")}, {"duration": 1.0, "texture": ExtResource("12")}, {"duration": 1.0, "texture": ExtResource("13")}, {"duration": 1.0, "texture": ExtResource("14")}, {"duration": 1.0, "texture": ExtResource("15")}, {"duration": 1.0, "texture": ExtResource("16")}, {"duration": 1.0, "texture": ExtResource("17")}, {"duration": 1.0, "texture": ExtResource("18")}, {"duration": 1.0, "texture": ExtResource("19")}, {"duration": 1.0, "texture": ExtResource("20")}, {"duration": 1.0, "texture": ExtResource("21")}, {"duration": 1.0, "texture": ExtResource("22")}],
+"frames": [{"duration": 1.0, "texture": ExtResource("2")}, {"duration": 1.0, "texture": ExtResource("3")}, {"duration": 1.0, "texture": ExtResource("4")}, {"duration": 1.0, "texture": ExtResource("5")}, {"duration": 1.0, "texture": ExtResource("6")}, {"duration": 1.0, "texture": ExtResource("7")}, {"duration": 1.0, "texture": ExtResource("8")}, {"duration": 1.0, "texture": ExtResource("9")}, {"duration": 1.0, "texture": ExtResource("10")}, {"duration": 1.0, "texture": ExtResource("11")}, {"duration": 1.0, "texture": ExtResource("12")}],
 "loop": false,
 "name": &"attack",
 "speed": 24.0
@@ -40,7 +30,7 @@ sprite_offset = Vector2(13.5, -0.5)
 fps = 24.0
 loop = false
 damage = 25
-active_start_frame = 7
-active_end_frame = 8
+active_start_frame = 5
+active_end_frame = 7
 hitbox_position = Vector2(92, 0)
 hitbox_size = Vector2(104, 72)
