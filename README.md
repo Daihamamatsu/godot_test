@@ -10,6 +10,7 @@ Godot 4.7.2 で作成した 2D プラットフォーマです。
 - 遠景の丘、地形、コイン、ゴールなどは `Polygon2D` などを使ってプロシージャルに描画し、中景の森は `assets/background/midground_forest.png` を横方向にタイル配置します。
 - 背景はパララックスレイヤーで構成し、空の遠景、中間距離の森、プレイヤーがいる近景の距離感を表現します。
 - 効果音は外部音声ファイルを使わず、`autoload/sfx.gd` の `Sfx` オートロードがコードで生成します。
+- BGMはローカル素材 `assets/bgm/from_tohogenkyoku_silent_town01.mp3` を使用し、ゲーム開始時にループ再生します。GAME OVER / COURSE CLEAR 時に停止し、リスタート時は頭から再生します。素材が欠落した環境では無音で続行します。
 - 外部プラグイン、アセットパック、外部フォントは使用していません。背景、プレイヤー、敵にはローカルのPNGを使用します。
 - `assets/`と`assets_backup/`はGit管理対象外です。現在は同一開発環境でのローカル運用を前提とし、PR完了後に実行日時付きの`assets_backup/assets_<YYYYMMDD_HHMMSS>/`へ素材をバックアップします。
 
@@ -84,6 +85,7 @@ EXIT_CODE=0
 - 残機、リスポーン、ゲームオーバー
 - ゴール到達によるコースクリア
 - コード生成による効果音
+- BGM(silent town)のループ再生、ゲーム終了時の停止
 
 ## ファイル構成
 
@@ -118,6 +120,8 @@ assets/player/attack/
   attack_01.png ～ attack_21.png
 assets/enemy/pien/
   pien.png / korae.png / panti.png / namida.png
+assets/bgm/
+  from_tohogenkyoku_silent_town01.mp3
 ```
 
 `.uid` ファイルは Godot がスクリプトやリソースを識別するためのサイドカーファイルで、Git 管理対象です。
