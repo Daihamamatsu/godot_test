@@ -45,6 +45,9 @@ const PLAYER_SCENE := preload("res://scenes/player.tscn")
 const ENEMY_SCENE := preload("res://scenes/enemy.tscn")
 const COIN_SCENE := preload("res://scenes/coin.tscn")
 const MIDGROUND_FOREST_TEXTURE := preload("res://assets/background/midground_forest.png")
+# ローカル専用のBGM素材(Git管理外)。素材が無い場合は無音で続行する。
+const BGM_PATH := "res://assets/bgm/from_tohogenkyoku_silent_town01.mp3"
+const BGM_VOLUME_DB := -8.0
 
 enum GameState { PLAYING, GAME_OVER, CLEAR }
 
@@ -54,6 +57,7 @@ var coin_count := 0
 var lives := 3
 
 var world: Node2D
+var bgm_player: AudioStreamPlayer
 var player: CharacterBody2D
 var score_label: Label
 var coin_label: Label
@@ -76,11 +80,13 @@ var _test_forest_y_origin := 0.0
 var _attack_overlap_test_enemy: Node2D
 var _attack_overlap_test_hp := 0
 var _attack_overlap_test_pending := false
+var _test_shutdown_pending := false
 
 
 func _ready() -> void:
 	_test_mode = OS.get_cmdline_args().has("test") or OS.get_cmdline_user_args().has("test")
 
+	_setup_bgm()
 	_build_background()
 	_build_hud()
 
@@ -443,6 +449,48 @@ func _intro() -> void:
 	if state == GameState.PLAYING:
 		_hide_message()
 
+
+# ------------------------------------------------------------------- BGM
+
+func _setup_bgm() -> void:
+	bgm_player = AudioStreamPlayer.new()
+	bgm_player.name = "BgmPlayer"
+	bgm_player.volume_db = BGM_VOLUME_DB
+	add_child(bgm_player)
+
+	# ローカル素材を実行時に読み込む(素材が無い場合はゲーム起動を阻害しないよう警告のみで続行)。
+	var bgm: AudioStream = load(BGM_PATH)
+	if bgm == null:
+		push_warning("BGM not found at '%s'. Continuing without BGM." % BGM_PATH)
+		return
+	# インポートされたmp3リソースはAudioStreamMP3なので全曲ループを有効にする。
+	if bgm is AudioStreamMP3:
+		var mp3 := bgm as AudioStreamMP3
+		mp3.loop = true
+		mp3.loop_offset = 0
+	bgm_player.stream = bgm
+	bgm_player.play()
+
+
+func _stop_bgm() -> void:
+	if bgm_player == null:
+		return
+	if bgm_player.playing:
+		bgm_player.stop()
+	# AudioStreamPlayer に残るストリーム参照を先に解放し、終了時のMP3参照を残さない。
+	bgm_player.stream = null
+
+
+func _notification(what: int) -> void:
+	# シーン退出時と破棄時(ゲーム終了)にBGMを停止する。
+	# スクリプトの _notification は Node が子ノードを破棄する前に配信されるため、
+	# ここで bgm_player はまだ有効なインスタンスである。
+	# シーン退出時に停止要求を出すことで、オーディオスレッドが動作中に
+	# プレイバックオブジェクトを削除できるようにする。
+	if what == NOTIFICATION_EXIT_TREE or what == NOTIFICATION_PREDELETE:
+		_stop_bgm()
+
+
 # ------------------------------------------------------------------- process
 
 func _process(_dt: float) -> void:
@@ -512,6 +560,8 @@ func _run_test_step() -> void:
 			_check(_attack_system_ok(), "attack-system")
 			_check(_attack_input_lock_ok(), "attack-input-lock")
 			_check(_enemy_hit_motion_ok(), "enemy-hit-motion")
+			_check(_bgm_stream_ok(), "bgm-ready")
+			_check(bgm_player != null and bgm_player.playing, "bgm-playing")
 			_attack_overlap_physics_begin()
 			_check(get_tree().get_nodes_in_group("coin").size() >= 10, "coins-placed")
 			_check(get_tree().get_nodes_in_group("enemy").size() >= 3, "enemies-placed")
@@ -534,10 +584,19 @@ func _run_test_step() -> void:
 			_check(_midground_scroll_is_slower(), "midground-scroll")
 		140:
 			_check(player.state == player.State.ALIVE, "player-alive")
-			print("TEST SUMMARY: %s" % ("ALL PASS" if _test_ok else "FAILED"))
-			get_tree().quit(0 if _test_ok else 1)
+			if not _test_shutdown_pending:
+				_test_shutdown_pending = true
+				_finish_test()
 		7:
 			_check(_attack_overlap_physics_finish(), "attack-overlap-physics")
+
+
+func _finish_test() -> void:
+	_stop_bgm()
+	# AudioServer の非同期プレイバック削除が完了する時間を確保してから終了する。
+	await get_tree().create_timer(0.2).timeout
+	print("TEST SUMMARY: %s" % ("ALL PASS" if _test_ok else "FAILED"))
+	get_tree().quit(0 if _test_ok else 1)
 
 
 # アクションに実キー(keycodeまたはphysical_keycodeがKEY_NONEでない)が
@@ -548,6 +607,17 @@ func _has_bound_key(action: String) -> bool:
 			var key_event := event as InputEventKey
 			if key_event.keycode != KEY_NONE or key_event.physical_keycode != KEY_NONE:
 				return true
+	return false
+
+
+# BGMストリームが読み込まれており、ループ設定が有効か。
+func _bgm_stream_ok() -> bool:
+	if bgm_player == null or bgm_player.stream == null:
+		return false
+	var stream: AudioStream = bgm_player.stream
+	if stream is AudioStreamMP3:
+		var mp3 := stream as AudioStreamMP3
+		return mp3.loop and mp3.loop_offset == 0
 	return false
 
 
@@ -905,6 +975,7 @@ func _on_goal_body_entered(body: Node2D) -> void:
 	state = GameState.CLEAR
 	score += 1000
 	Sfx.play("clear")
+	_stop_bgm()
 	_update_hud()
 	player.win()
 	_show_message("COURSE CLEAR!", "SCORE %06d      R : Restart" % score)
@@ -918,6 +989,7 @@ func _on_player_died() -> void:
 	if lives <= 0:
 		state = GameState.GAME_OVER
 		Sfx.play("gameover")
+		_stop_bgm()
 		await get_tree().create_timer(1.4).timeout
 		_show_message("GAME OVER", "SCORE %06d      R : Restart" % score)
 	else:
