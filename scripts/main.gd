@@ -81,6 +81,9 @@ var _attack_overlap_test_enemy: Node2D
 var _attack_overlap_test_hp := 0
 var _attack_overlap_test_pending := false
 var _test_shutdown_pending := false
+var _camera_shake_phase := 0
+
+const HIT_STOP_CAMERA_SHAKE_OFFSET := Vector2(3.0, 2.0)
 
 
 func _ready() -> void:
@@ -501,8 +504,21 @@ func _process(_dt: float) -> void:
 		_set_hitbox_debug_enabled(not hitbox_debug_enabled)
 	_update_hitbox_debug_label()
 	_update_midground_scroll()
+	_update_hit_stop_camera_shake()
 	if _test_mode:
 		_run_test_step()
+
+
+func _update_hit_stop_camera_shake() -> void:
+	var camera := player.get_node_or_null("Camera2D") as Camera2D if player != null else null
+	if camera == null:
+		return
+	if player.hit_stop_frames > 0:
+		_camera_shake_phase += 1
+		camera.offset = HIT_STOP_CAMERA_SHAKE_OFFSET if _camera_shake_phase % 2 == 0 else -HIT_STOP_CAMERA_SHAKE_OFFSET
+	else:
+		_camera_shake_phase = 0
+		camera.offset = Vector2.ZERO
 
 
 func _set_hitbox_debug_enabled(value: bool) -> void:
@@ -981,11 +997,16 @@ func _hit_stop_motion_ok() -> bool:
 	enemy.apply_hit_stop(enemy.attack_motion.hit_stop_frames)
 	player._physics_process(1.0 / 60.0)
 	enemy._physics_process(1.0 / 60.0)
+	_update_hit_stop_camera_shake()
 	var player_stopped: bool = player.hit_stop_frames == 7 and is_equal_approx(player._attack_elapsed, player_frame_before)
 	var enemy_stopped: bool = enemy.hit_stop_frames == 7 and enemy.attack_frame == enemy_frame_before
+	var camera := player.get_node_or_null("Camera2D") as Camera2D
+	var camera_shaking: bool = camera != null and camera.offset != Vector2.ZERO
 	player.hit_stop_frames = 0
 	enemy.hit_stop_frames = 0
-	return player_stopped and enemy_stopped
+	_update_hit_stop_camera_shake()
+	var camera_reset: bool = camera != null and camera.offset == Vector2.ZERO
+	return player_stopped and enemy_stopped and camera_shaking and camera_reset
 
 
 func _check(cond: bool, test_name: String) -> void:
