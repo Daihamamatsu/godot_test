@@ -42,6 +42,7 @@ var invincible := 0.0
 var hp := MAX_HP
 var attacking := false
 var hit_stop_frames := 0
+var hit_reaction_frames := 0
 var _attack_elapsed := 0.0
 var _attack_hit_targets: Array[Node] = []
 
@@ -89,6 +90,16 @@ func _apply_motion_data() -> void:
 func _physics_process(dt: float) -> void:
 	if hit_stop_frames > 0:
 		hit_stop_frames -= 1
+		return
+	if hit_reaction_frames > 0:
+		hit_reaction_frames -= 1
+		velocity = Vector2.ZERO
+		_jump_buffer = 0.0
+		_finish_attack()
+		walk_sprite.stop()
+		walk_sprite.visible = true
+		attack_sprite.visible = false
+		visual.modulate.a = 0.45
 		return
 	if state == State.DYING:
 		# その場で転がる(落下中もレベルとの衝突は継続する)。
@@ -212,10 +223,13 @@ func _die(from_pit: bool = false) -> void:
 	tw.tween_callback(hide)
 
 
-func take_damage(ap: int, hit_stop: int = 0) -> void:
+func take_damage(ap: int, hit_stop: int = 0, hurt_frames: int = 0) -> void:
 	if invincible > 0.0 or state != State.ALIVE:
 		return
 	apply_hit_stop(hit_stop)
+	_finish_attack()
+	hit_reaction_frames = maxi(hit_reaction_frames, hurt_frames)
+	velocity = Vector2.ZERO
 	hp = maxi(hp - maxi(ap, 0), 0)
 	hp_changed.emit(hp, MAX_HP)
 	Sfx.play("hurt")
@@ -333,6 +347,7 @@ func respawn(pos: Vector2) -> void:
 	velocity = Vector2.ZERO
 	state = State.ALIVE
 	hit_stop_frames = 0
+	hit_reaction_frames = 0
 	hp = MAX_HP
 	hp_changed.emit(hp, MAX_HP)
 	invincible = 2.0

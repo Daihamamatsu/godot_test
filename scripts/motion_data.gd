@@ -17,6 +17,7 @@ class_name MotionData
 @export_category("攻撃")
 @export_range(0, 999, 1) var damage := 0
 @export_range(0, 999, 1) var hit_stop_frames := 8
+@export_range(0, 999, 1) var hit_reaction_frames := 12
 @export_range(0, 999, 1) var active_start_frame := 0
 @export_range(0, 999, 1) var active_end_frame := 0
 @export_range(0, 999, 1) var prepare_frames := 0

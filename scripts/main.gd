@@ -576,6 +576,7 @@ func _run_test_step() -> void:
 			_check(_attack_system_ok(), "attack-system")
 			_check(_attack_input_lock_ok(), "attack-input-lock")
 			_check(_enemy_hit_motion_ok(), "enemy-hit-motion")
+			_check(_player_hit_reaction_ok(), "player-hit-reaction")
 			_check(_hit_stop_settings_ok(), "hit-stop-settings")
 			_check(_hit_stop_motion_ok(), "hit-stop-motion")
 			_check(_bgm_stream_ok(), "bgm-ready")
@@ -834,7 +835,7 @@ func _damage_system_ok() -> bool:
 	enemy.dir = -1
 	enemy.receive_attack_damage(0, player)
 	var facing_player_ok: bool = enemy.dir == 1
-	enemy.hitstun = 0.0
+	enemy.hit_reaction_frames = 0
 	enemy.dir = facing_before
 	player.global_position = enemy.global_position + Vector2(0.0, 150.0)
 	enemy._on_hurt_body_entered(player)
@@ -878,7 +879,7 @@ func _attack_system_ok() -> bool:
 	player.hit_stop_frames = 0
 	enemy.hp = hp_before
 	enemy.hp_changed.emit(enemy.hp, enemy.MAX_HP)
-	enemy.hitstun = 0.0
+	enemy.hit_reaction_frames = 0
 	enemy.hit_stop_frames = 0
 	enemy.modulate.a = 1.0
 	return frames_ok and active_window_ok and collision_ok and hit_once and hit_once_only
@@ -915,7 +916,7 @@ func _attack_overlap_physics_begin() -> void:
 	player.global_position = Vector2(500.0, 400.0)
 	player.facing = 1
 	_attack_overlap_test_enemy.global_position = player.global_position + Vector2(attack_motion.hitbox_position.x, 16.0)
-	_attack_overlap_test_enemy.hitstun = 0.0
+	_attack_overlap_test_enemy.hit_reaction_frames = 0
 	_attack_overlap_test_enemy.dead = false
 	_attack_overlap_test_enemy.attack_frame = -1
 	_attack_overlap_test_enemy.attack_cooldown_frame = 9999
@@ -941,7 +942,7 @@ func _attack_overlap_physics_finish() -> bool:
 	player._finish_attack()
 	_attack_overlap_test_enemy.hp = _attack_overlap_test_hp
 	_attack_overlap_test_enemy.hp_changed.emit(_attack_overlap_test_enemy.hp, _attack_overlap_test_enemy.MAX_HP)
-	_attack_overlap_test_enemy.hitstun = 0.0
+	_attack_overlap_test_enemy.hit_reaction_frames = 0
 	_attack_overlap_test_enemy.modulate.a = 1.0
 	_attack_overlap_test_enemy.global_position = Vector2(760.0, 544.0)
 	player.global_position = player_position_before
@@ -964,17 +965,37 @@ func _enemy_hit_motion_ok() -> bool:
 	var hp_ok: bool = enemy.hp == start_hp - attacker.ATTACK_AP
 	var knockback_ok: bool = enemy.velocity.x > 0.0
 	var alpha_ok: bool = is_equal_approx(enemy.modulate.a, enemy.HITSTUN_ALPHA)
-	var hitstun_ok: bool = enemy.hitstun > 0.0
+	var hit_reaction_ok: bool = enemy.hit_reaction_frames == attacker.attack_motion.hit_reaction_frames
 	enemy.hit_stop_frames = 0
 	attacker.hit_stop_frames = 0
 	enemy._physics_process(0.1)
-	var moved_ok: bool = enemy.global_position.x > start_position.x
-	enemy.hitstun = 0.0
+	var locked_ok: bool = is_zero_approx(enemy.global_position.x - start_position.x)
+	enemy.hit_reaction_frames = 0
 	enemy.modulate.a = 1.0
 	enemy.global_position = start_position
 	enemy.velocity = Vector2.ZERO
 	attacker.global_position = SPAWN
-	return hp_ok and knockback_ok and alpha_ok and hitstun_ok and moved_ok
+	return hp_ok and knockback_ok and alpha_ok and hit_reaction_ok and locked_ok
+
+
+func _player_hit_reaction_ok() -> bool:
+	var hp_before: int = player.hp
+	player.invincible = 0.0
+	player.start_attack()
+	player.velocity = Vector2(120.0, 0.0)
+	player.take_damage(0, 0, 3)
+	var interrupted_ok: bool = not player.attacking and player.hit_reaction_frames == 3
+	var position_before: Vector2 = player.global_position
+	player._physics_process(1.0 / 60.0)
+	var locked_ok: bool = player.hit_reaction_frames == 2 \
+		and is_zero_approx(player.global_position.x - position_before.x) \
+		and is_zero_approx(player.velocity.x)
+	player.hit_reaction_frames = 0
+	player.invincible = 0.0
+	player.hp = hp_before
+	player.hp_changed.emit(player.hp, player.MAX_HP)
+	player.respawn(SPAWN)
+	return interrupted_ok and locked_ok
 
 
 func _hit_stop_settings_ok() -> bool:
