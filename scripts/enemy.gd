@@ -42,7 +42,7 @@ var dir := -1
 var dead := false
 var hp := MAX_HP
 var hit_stop_frames := 0
-var hitstun := 0.0
+var hit_reaction_frames := 0
 var attack_frame := -1
 var attack_cooldown_frame := 0
 var death_frame := -1
@@ -81,14 +81,20 @@ func _physics_process(dt: float) -> void:
 	if hit_stop_frames > 0:
 		hit_stop_frames -= 1
 		return
+	if hit_reaction_frames > 0:
+		hit_reaction_frames -= 1
+		velocity = Vector2.ZERO
+		attack_frame = -1
+		attack_area.set_deferred("monitoring", false)
+		_update_hit_reaction_visual()
+		if hit_reaction_frames <= 0:
+			attack_cooldown_frame = 0
+		return
 	if death_frame >= 0:
 		_update_death()
 		return
 	if attack_frame >= 0:
 		_update_attack()
-		return
-	if hitstun > 0.0:
-		_update_hitstun(dt)
 		return
 	if attack_cooldown_frame > 0:
 		attack_cooldown_frame -= 1
@@ -218,7 +224,7 @@ func _handle_attack_area(area: Area2D) -> void:
 		return
 	_attack_hit_targets.append(target)
 	var hit_stop := attack_motion.hit_stop_frames if attack_motion != null else 8
-	target.take_damage(attack_motion.damage if attack_motion != null else ENEMY_ATTACK_AP, hit_stop)
+	target.take_damage(attack_motion.damage if attack_motion != null else ENEMY_ATTACK_AP, hit_stop, attack_motion.hit_reaction_frames if attack_motion != null else 12)
 	apply_hit_stop(hit_stop)
 	Sfx.play("hit")
 
@@ -229,13 +235,13 @@ func is_attack_active() -> bool:
 	return attack_frame >= ATTACK_ACTIVE_START and attack_frame <= ATTACK_ACTIVE_END
 
 
-func _update_hitstun(dt: float) -> void:
-	hitstun = maxf(hitstun - dt, 0.0)
-	velocity.x = move_toward(velocity.x, 0.0, 900.0 * dt)
-	velocity.y = minf(velocity.y + GRAVITY * dt, MAX_FALL_SPEED)
-	move_and_slide()
-	modulate.a = HITSTUN_ALPHA if hitstun > 0.0 else 1.0
-	_update_normal_visual()
+func _update_hit_reaction_visual() -> void:
+	modulate.a = HITSTUN_ALPHA
+	normal_sprite.visible = true
+	attack_sprite.visible = false
+	panti_sprite.visible = false
+	death_sprite.visible = false
+	_apply_facing()
 
 
 func _on_hurt_body_entered(body: Node2D) -> void:
@@ -249,7 +255,7 @@ func _on_hurt_body_entered(body: Node2D) -> void:
 
 
 func _on_hurt_area_entered(area: Area2D) -> void:
-	if dead or hitstun > 0.0 or not area.is_in_group("player_attack"):
+	if dead or hit_reaction_frames > 0 or not area.is_in_group("player_attack"):
 		return
 	var attacker := area.get_parent()
 	if not attacker.is_in_group("player") or not attacker.has_method("consume_attack_hit"):
@@ -262,7 +268,7 @@ func _on_hurt_area_entered(area: Area2D) -> void:
 
 
 func receive_attack_damage(ap: int, attacker: Node2D) -> void:
-	if dead or hitstun > 0.0:
+	if dead or hit_reaction_frames > 0:
 		return
 	var attacker_delta_x := attacker.global_position.x - global_position.x
 	if not is_zero_approx(attacker_delta_x):
@@ -271,9 +277,13 @@ func receive_attack_damage(ap: int, attacker: Node2D) -> void:
 		dir = int(attacker.get("facing"))
 	_apply_facing()
 	var hit_stop: int = attacker.attack_motion.hit_stop_frames if attacker.get("attack_motion") != null else 8
+	var hurt_frames: int = attacker.attack_motion.hit_reaction_frames if attacker.get("attack_motion") != null else 12
 	apply_hit_stop(hit_stop)
 	if attacker.has_method("apply_hit_stop"):
 		attacker.apply_hit_stop(hit_stop)
+	attack_frame = -1
+	attack_cooldown_frame = attack_motion.cooldown_frames if attack_motion != null else ATTACK_COOLDOWN_FRAMES
+	attack_area.set_deferred("monitoring", false)
 	take_damage(ap)
 	if dead:
 		return
@@ -282,7 +292,7 @@ func receive_attack_damage(ap: int, attacker: Node2D) -> void:
 		knockback_dir = -float(int(attacker.get("facing")))
 	velocity.x = knockback_dir * HITSTUN_KNOCKBACK
 	velocity.y = -70.0
-	hitstun = HITSTUN_TIME
+	hit_reaction_frames = maxi(hit_reaction_frames, hurt_frames)
 	modulate.a = HITSTUN_ALPHA
 
 

@@ -31,6 +31,7 @@ fps = 24.0
 loop = false
 damage = 25
 hit_stop_frames = 8
+hit_reaction_frames = 12
 active_start_frame = 5
 active_end_frame = 7
 hitbox_position = Vector2(92, 0)
