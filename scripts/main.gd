@@ -45,6 +45,7 @@ const PLAYER_SCENE := preload("res://scenes/player.tscn")
 const ENEMY_SCENE := preload("res://scenes/enemy.tscn")
 const COIN_SCENE := preload("res://scenes/coin.tscn")
 const MIDGROUND_FOREST_TEXTURE := preload("res://assets/background/midground_forest.png")
+const DISTANT_SKY_TEXTURE := preload("res://assets/background/distant_sky.png")
 # ローカル専用のBGM素材(Git管理外)。素材が無い場合は無音で続行する。
 const BGM_PATH := "res://assets/bgm/from_tohogenkyoku_silent_town01.mp3"
 const BGM_VOLUME_DB := -8.0
@@ -67,6 +68,7 @@ var hp_label: Label
 var message_label: Label
 var sub_label: Label
 var hitbox_debug_label: Label
+var distant_sky: TextureRect
 var midground_forest: Node2D
 var midground_camera_origin := Vector2.ZERO
 var hitbox_debug_enabled := false
@@ -122,11 +124,19 @@ func _build_background() -> void:
 	bg.name = "Background"
 	add_child(bg)
 
-	var sky := ColorRect.new()
-	sky.position = Vector2(-60, -260)
-	sky.size = Vector2(4520, 1120)
-	sky.color = Color(0.45, 0.71, 0.95)
-	bg.add_child(sky)
+	var distant_sky_layer := CanvasLayer.new()
+	distant_sky_layer.name = "DistantSkyLayer"
+	distant_sky_layer.layer = -10
+	add_child(distant_sky_layer)
+
+	distant_sky = TextureRect.new()
+	distant_sky.name = "DistantSky"
+	distant_sky.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	distant_sky.texture = DISTANT_SKY_TEXTURE
+	distant_sky.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	distant_sky.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	distant_sky.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	distant_sky_layer.add_child(distant_sky)
 
 	var parallax := ParallaxBackground.new()
 	parallax.name = "ParallaxBackground"
@@ -560,6 +570,7 @@ func _run_test_step() -> void:
 			_check(player != null and player.is_in_group("player"), "player-ready")
 			_check(_midground_forest_ok(), "midground-forest")
 			_check(_midground_reaches_screen_bottom(), "midground-screen-bottom")
+			_check(_distant_sky_ok(), "distant-sky")
 			_test_camera_origin = (player.get_node("Camera2D") as Camera2D).get_screen_center_position()
 			_test_forest_origin = midground_forest.position
 			_test_forest_y_origin = midground_forest.position.y
@@ -602,6 +613,7 @@ func _run_test_step() -> void:
 		120:
 			_check(_camera_has_scrolled(), "camera-scroll-started")
 			_check(_midground_scroll_is_slower(), "midground-scroll")
+			_check(_distant_sky_fixed_to_screen(), "distant-sky-fixed")
 		140:
 			_check(player.state == player.State.ALIVE, "player-alive")
 			if not _test_shutdown_pending:
@@ -655,6 +667,18 @@ func _midground_forest_ok() -> bool:
 		and not first_tile.flip_h and second_tile.flip_h
 
 
+# 遠景の空画像が画面全体を覆い、アスペクト比維持のカバー表示になっているか確認する。
+func _distant_sky_ok() -> bool:
+	if distant_sky == null or distant_sky.texture != DISTANT_SKY_TEXTURE:
+		return false
+	var viewport_size := get_viewport_rect().size
+	var rect_size := distant_sky.size
+	return distant_sky.stretch_mode == TextureRect.STRETCH_KEEP_ASPECT_COVERED \
+		and distant_sky.expand_mode == TextureRect.EXPAND_IGNORE_SIZE \
+		and is_equal_approx(rect_size.x, viewport_size.x) \
+		and is_equal_approx(rect_size.y, viewport_size.y)
+
+
 # 中景画像の下端が、現在の画面下端まで届いているか確認する。
 func _midground_reaches_screen_bottom() -> bool:
 	var camera := player.get_node_or_null("Camera2D") as Camera2D
@@ -678,6 +702,14 @@ func _midground_scroll_is_slower() -> bool:
 	if absf(camera_delta.x) < 1.0:
 		return false
 	return absf(forest_delta.x) < absf(camera_delta.x)
+
+
+# 遠景がワールドカメラに追従せず、画面上の同じ位置に固定されているか確認する。
+func _distant_sky_fixed_to_screen() -> bool:
+	if distant_sky == null:
+		return false
+	return distant_sky.position == Vector2.ZERO \
+		and distant_sky.global_position == Vector2.ZERO
 
 
 # カメラの左端リミットを越えて、実際に画面がスクロールしたか確認する。

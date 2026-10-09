@@ -7,7 +7,7 @@ Godot 4.7.2 で作成した 2D プラットフォーマです。
 
 - プレイヤーの歩行アニメーションは、`assets/player/walk/` にある 14 枚の PNG フレームを使用します。キック攻撃は `assets/player/attack/` の 21 枚の PNG フレームを使用します。
 - 敵キャラクターは `assets/enemy/pien/` の `pien.png`、`korae.png`、`panti.png`、`namida.png` を使用します。この敵素材は本Issueで承認した例外として導入しています。
-- 遠景の丘、地形、コイン、ゴールなどは `Polygon2D` などを使ってプロシージャルに描画し、中景の森は `assets/background/midground_forest.png` を横方向にタイル配置します。
+- 遠景は `assets/background/distant_sky.png` を画面固定のレイヤーにアスペクト比を維持してカバー表示します。丘、地形、コイン、ゴールなどは `Polygon2D` などを使ってプロシージャルに描画し、中景の森は `assets/background/midground_forest.png` を横方向にタイル配置します。
 - 背景はパララックスレイヤーで構成し、空の遠景、中間距離の森、プレイヤーがいる近景の距離感を表現します。
 - 効果音は外部音声ファイルを使わず、`autoload/sfx.gd` の `Sfx` オートロードがコードで生成します。
 - BGMはローカル素材 `assets/bgm/from_tohogenkyoku_silent_town01.mp3` を使用し、ゲーム開始時にループ再生します。GAME OVER / COURSE CLEAR 時に停止し、リスタート時は頭から再生します。素材が欠落した環境では無音で続行します。
