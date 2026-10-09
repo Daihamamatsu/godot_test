@@ -8,6 +8,7 @@ animation_name = &"enemy_attack"
 fps = 60.0
 loop = false
 damage = 25
+hit_stop_frames = 8
 prepare_frames = 20
 grow_frames = 8
 active_start_frame = 28

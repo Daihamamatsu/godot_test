@@ -560,6 +560,8 @@ func _run_test_step() -> void:
 			_check(_attack_system_ok(), "attack-system")
 			_check(_attack_input_lock_ok(), "attack-input-lock")
 			_check(_enemy_hit_motion_ok(), "enemy-hit-motion")
+			_check(_hit_stop_settings_ok(), "hit-stop-settings")
+			_check(_hit_stop_motion_ok(), "hit-stop-motion")
 			_check(_bgm_stream_ok(), "bgm-ready")
 			_check(bgm_player != null and bgm_player.playing, "bgm-playing")
 			_attack_overlap_physics_begin()
@@ -857,9 +859,11 @@ func _attack_system_ok() -> bool:
 	enemy._on_hurt_area_entered(attack_area)
 	var hit_once_only: bool = enemy.hp == hp_before - attack_damage
 	player._finish_attack()
+	player.hit_stop_frames = 0
 	enemy.hp = hp_before
 	enemy.hp_changed.emit(enemy.hp, enemy.MAX_HP)
 	enemy.hitstun = 0.0
+	enemy.hit_stop_frames = 0
 	enemy.modulate.a = 1.0
 	return frames_ok and active_window_ok and collision_ok and hit_once and hit_once_only
 
@@ -945,6 +949,8 @@ func _enemy_hit_motion_ok() -> bool:
 	var knockback_ok: bool = enemy.velocity.x > 0.0
 	var alpha_ok: bool = is_equal_approx(enemy.modulate.a, enemy.HITSTUN_ALPHA)
 	var hitstun_ok: bool = enemy.hitstun > 0.0
+	enemy.hit_stop_frames = 0
+	attacker.hit_stop_frames = 0
 	enemy._physics_process(0.1)
 	var moved_ok: bool = enemy.global_position.x > start_position.x
 	enemy.hitstun = 0.0
@@ -953,6 +959,33 @@ func _enemy_hit_motion_ok() -> bool:
 	enemy.velocity = Vector2.ZERO
 	attacker.global_position = SPAWN
 	return hp_ok and knockback_ok and alpha_ok and hitstun_ok and moved_ok
+
+
+func _hit_stop_settings_ok() -> bool:
+	var enemies := get_tree().get_nodes_in_group("enemy")
+	return not enemies.is_empty() \
+		and player.attack_motion != null \
+		and player.attack_motion.hit_stop_frames == 8 \
+		and enemies[0].attack_motion != null \
+		and enemies[0].attack_motion.hit_stop_frames == 8
+
+
+func _hit_stop_motion_ok() -> bool:
+	var enemies := get_tree().get_nodes_in_group("enemy")
+	if enemies.is_empty() or player.attack_motion == null:
+		return false
+	var enemy := enemies[0]
+	var player_frame_before: float = player._attack_elapsed
+	var enemy_frame_before: int = enemy.attack_frame
+	player.apply_hit_stop(player.attack_motion.hit_stop_frames)
+	enemy.apply_hit_stop(enemy.attack_motion.hit_stop_frames)
+	player._physics_process(1.0 / 60.0)
+	enemy._physics_process(1.0 / 60.0)
+	var player_stopped: bool = player.hit_stop_frames == 7 and is_equal_approx(player._attack_elapsed, player_frame_before)
+	var enemy_stopped: bool = enemy.hit_stop_frames == 7 and enemy.attack_frame == enemy_frame_before
+	player.hit_stop_frames = 0
+	enemy.hit_stop_frames = 0
+	return player_stopped and enemy_stopped
 
 
 func _check(cond: bool, test_name: String) -> void:

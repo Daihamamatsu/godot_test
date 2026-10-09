@@ -41,6 +41,7 @@ var attack_motion: MotionData = ATTACK_MOTION
 var dir := -1
 var dead := false
 var hp := MAX_HP
+var hit_stop_frames := 0
 var hitstun := 0.0
 var attack_frame := -1
 var attack_cooldown_frame := 0
@@ -77,6 +78,9 @@ func _apply_motion_data() -> void:
 
 
 func _physics_process(dt: float) -> void:
+	if hit_stop_frames > 0:
+		hit_stop_frames -= 1
+		return
 	if death_frame >= 0:
 		_update_death()
 		return
@@ -213,7 +217,9 @@ func _handle_attack_area(area: Area2D) -> void:
 	if target == null or target in _attack_hit_targets or not target.has_method("take_damage"):
 		return
 	_attack_hit_targets.append(target)
-	target.take_damage(attack_motion.damage if attack_motion != null else ENEMY_ATTACK_AP)
+	var hit_stop := attack_motion.hit_stop_frames if attack_motion != null else 8
+	target.take_damage(attack_motion.damage if attack_motion != null else ENEMY_ATTACK_AP, hit_stop)
+	apply_hit_stop(hit_stop)
 	Sfx.play("hit")
 
 
@@ -264,6 +270,10 @@ func receive_attack_damage(ap: int, attacker: Node2D) -> void:
 	else:
 		dir = int(attacker.get("facing"))
 	_apply_facing()
+	var hit_stop: int = attacker.attack_motion.hit_stop_frames if attacker.get("attack_motion") != null else 8
+	apply_hit_stop(hit_stop)
+	if attacker.has_method("apply_hit_stop"):
+		attacker.apply_hit_stop(hit_stop)
 	take_damage(ap)
 	if dead:
 		return
@@ -296,6 +306,10 @@ func take_damage(ap: int) -> void:
 	hp_changed.emit(hp, MAX_HP)
 	if hp <= 0:
 		_begin_death()
+
+
+func apply_hit_stop(frames: int) -> void:
+	hit_stop_frames = maxi(hit_stop_frames, frames)
 
 
 func _begin_death() -> void:
