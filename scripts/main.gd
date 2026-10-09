@@ -576,6 +576,7 @@ func _run_test_step() -> void:
 			_check(_attack_system_ok(), "attack-system")
 			_check(_attack_input_lock_ok(), "attack-input-lock")
 			_check(_enemy_hit_motion_ok(), "enemy-hit-motion")
+			_check(_enemy_hit_reaction_cooldown_reset_ok(), "enemy-hit-reaction-cooldown-reset")
 			_check(_player_hit_reaction_ok(), "player-hit-reaction")
 			_check(_hit_stop_settings_ok(), "hit-stop-settings")
 			_check(_hit_stop_motion_ok(), "hit-stop-motion")
@@ -996,6 +997,29 @@ func _player_hit_reaction_ok() -> bool:
 	player.hp_changed.emit(player.hp, player.MAX_HP)
 	player.respawn(SPAWN)
 	return interrupted_ok and locked_ok
+
+
+func _enemy_hit_reaction_cooldown_reset_ok() -> bool:
+	var enemies := get_tree().get_nodes_in_group("enemy")
+	if enemies.is_empty():
+		return false
+	var enemy := enemies[0]
+	var cooldown_before: int = enemy.attack_cooldown_frame
+	var reaction_before: int = enemy.hit_reaction_frames
+	var attack_frame_before: int = enemy.attack_frame
+	enemy.attack_frame = -1
+	enemy.hit_reaction_frames = 1
+	enemy.attack_cooldown_frame = 99
+	enemy.velocity = Vector2(80.0, 0.0)
+	enemy._physics_process(1.0 / 60.0)
+	var reset_ok: bool = enemy.hit_reaction_frames == 0 and enemy.attack_cooldown_frame == 0
+	var movement_locked_ok: bool = is_zero_approx(enemy.velocity.x)
+	enemy.hit_reaction_frames = reaction_before
+	enemy.attack_cooldown_frame = cooldown_before
+	enemy.attack_frame = attack_frame_before
+	enemy.velocity = Vector2.ZERO
+	enemy.modulate.a = 1.0
+	return reset_ok and movement_locked_ok
 
 
 func _hit_stop_settings_ok() -> bool:

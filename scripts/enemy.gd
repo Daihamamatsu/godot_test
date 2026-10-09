@@ -87,6 +87,8 @@ func _physics_process(dt: float) -> void:
 		attack_frame = -1
 		attack_area.set_deferred("monitoring", false)
 		_update_hit_reaction_visual()
+		if hit_reaction_frames <= 0:
+			attack_cooldown_frame = 0
 		return
 	if death_frame >= 0:
 		_update_death()
