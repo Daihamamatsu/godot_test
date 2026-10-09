@@ -5,6 +5,7 @@ const SPAWN := Vector2(120, 479.5)
 const GROUND_TOP := 600.0
 const KILL_Y := 720.0
 const MIDGROUND_SCROLL_FACTOR := 0.72
+const DISTANT_SKY_SCROLL_FACTOR := 0.18
 
 # [x_start, x_end] の地面区間（上面は GROUND_TOP）。
 const GROUND_SEGS: Array = [
@@ -45,6 +46,7 @@ const PLAYER_SCENE := preload("res://scenes/player.tscn")
 const ENEMY_SCENE := preload("res://scenes/enemy.tscn")
 const COIN_SCENE := preload("res://scenes/coin.tscn")
 const MIDGROUND_FOREST_TEXTURE := preload("res://assets/background/midground_forest.png")
+const DISTANT_SKY_TEXTURE := preload("res://assets/background/distant_sky.png")
 # ローカル専用のBGM素材(Git管理外)。素材が無い場合は無音で続行する。
 const BGM_PATH := "res://assets/bgm/from_tohogenkyoku_silent_town01.mp3"
 const BGM_VOLUME_DB := -8.0
@@ -67,6 +69,7 @@ var hp_label: Label
 var message_label: Label
 var sub_label: Label
 var hitbox_debug_label: Label
+var distant_sky: Node2D
 var midground_forest: Node2D
 var midground_camera_origin := Vector2.ZERO
 var hitbox_debug_enabled := false
@@ -77,6 +80,7 @@ var _test_ok := true
 var _test_camera_origin := Vector2.ZERO
 var _test_forest_origin := Vector2.ZERO
 var _test_forest_y_origin := 0.0
+var _test_sky_origin := Vector2.ZERO
 var _attack_overlap_test_enemy: Node2D
 var _attack_overlap_test_hp := 0
 var _attack_overlap_test_pending := false
@@ -122,11 +126,10 @@ func _build_background() -> void:
 	bg.name = "Background"
 	add_child(bg)
 
-	var sky := ColorRect.new()
-	sky.position = Vector2(-60, -260)
-	sky.size = Vector2(4520, 1120)
-	sky.color = Color(0.45, 0.71, 0.95)
-	bg.add_child(sky)
+	distant_sky = Node2D.new()
+	distant_sky.name = "DistantSky"
+	bg.add_child(distant_sky)
+	_add_distant_sky_tiles()
 
 	var parallax := ParallaxBackground.new()
 	parallax.name = "ParallaxBackground"
@@ -159,6 +162,22 @@ func _build_background() -> void:
 		cloud.polygon = _cloud_poly(float(c[0]), float(c[1]), float(c[2]))
 		cloud.color = Color(1.0, 1.0, 1.0, 0.92)
 		clouds.add_child(cloud)
+
+
+func _add_distant_sky_tiles() -> void:
+	var tile_width := float(DISTANT_SKY_TEXTURE.get_width())
+	var tile_height := float(DISTANT_SKY_TEXTURE.get_height())
+	var first_tile_x := -tile_width
+	var tile_count := 6
+	for i in tile_count:
+		var sky_tile := Sprite2D.new()
+		sky_tile.texture = DISTANT_SKY_TEXTURE
+		sky_tile.position = Vector2(
+			first_tile_x + tile_width * (float(i) + 0.5),
+			GROUND_TOP - tile_height * 0.5
+		)
+		sky_tile.name = "SkyTile%d" % i
+		distant_sky.add_child(sky_tile)
 
 
 func _add_midground_forest_tiles() -> void:
@@ -542,7 +561,7 @@ func _update_hitbox_debug_label() -> void:
 
 
 func _update_midground_scroll() -> void:
-	if midground_forest == null or player == null:
+	if midground_forest == null or distant_sky == null or player == null:
 		return
 	var camera := player.get_node_or_null("Camera2D") as Camera2D
 	if camera == null:
@@ -550,6 +569,8 @@ func _update_midground_scroll() -> void:
 	var camera_delta := camera.get_screen_center_position() - midground_camera_origin
 	# 中景の奥行き差は横スクロールだけに適用し、ジャンプでは木を上下させない。
 	midground_forest.position.x = camera_delta.x * (1.0 - MIDGROUND_SCROLL_FACTOR)
+	# 遠景は中景よりさらに遅く動かし、空の奥行きを表現する。
+	distant_sky.position.x = camera_delta.x * DISTANT_SKY_SCROLL_FACTOR
 
 
 func _run_test_step() -> void:
@@ -560,9 +581,11 @@ func _run_test_step() -> void:
 			_check(player != null and player.is_in_group("player"), "player-ready")
 			_check(_midground_forest_ok(), "midground-forest")
 			_check(_midground_reaches_screen_bottom(), "midground-screen-bottom")
+			_check(_distant_sky_ok(), "distant-sky")
 			_test_camera_origin = (player.get_node("Camera2D") as Camera2D).get_screen_center_position()
 			_test_forest_origin = midground_forest.position
 			_test_forest_y_origin = midground_forest.position.y
+			_test_sky_origin = distant_sky.position
 			_check(_player_walk_sprite_ok(), "player-sprite")
 			_check(_player_collision_ok(), "player-collision")
 			_check(_enemy_collision_ok(), "enemy-collision")
@@ -593,6 +616,7 @@ func _run_test_step() -> void:
 			_check(player.global_position.x > 120.0, "move-right")
 			_check(absf(midground_forest.position.y - _test_forest_y_origin) < 0.01, "midground-jump-height")
 			_check(absf(midground_forest.position.x - _test_forest_origin.x) < 0.01, "midground-before-camera-scroll")
+			_check(absf(distant_sky.position.x - _test_sky_origin.x) < 0.01, "distant-sky-before-camera-scroll")
 		45:
 			Input.action_release("jump")
 		80:
@@ -602,6 +626,7 @@ func _run_test_step() -> void:
 		120:
 			_check(_camera_has_scrolled(), "camera-scroll-started")
 			_check(_midground_scroll_is_slower(), "midground-scroll")
+			_check(_distant_sky_scroll_is_slower(), "distant-sky-scroll")
 		140:
 			_check(player.state == player.State.ALIVE, "player-alive")
 			if not _test_shutdown_pending:
@@ -655,6 +680,18 @@ func _midground_forest_ok() -> bool:
 		and not first_tile.flip_h and second_tile.flip_h
 
 
+# 遠景の空画像が横方向に連続配置され、指定画像を使用しているか確認する。
+func _distant_sky_ok() -> bool:
+	if distant_sky == null or distant_sky.get_child_count() < 5:
+		return false
+	var first_tile := distant_sky.get_child(0) as Sprite2D
+	var second_tile := distant_sky.get_child(1) as Sprite2D
+	if first_tile == null or second_tile == null or first_tile.texture != DISTANT_SKY_TEXTURE:
+		return false
+	var tile_width := DISTANT_SKY_TEXTURE.get_width()
+	return is_equal_approx(second_tile.position.x - first_tile.position.x, tile_width)
+
+
 # 中景画像の下端が、現在の画面下端まで届いているか確認する。
 func _midground_reaches_screen_bottom() -> bool:
 	var camera := player.get_node_or_null("Camera2D") as Camera2D
@@ -678,6 +715,18 @@ func _midground_scroll_is_slower() -> bool:
 	if absf(camera_delta.x) < 1.0:
 		return false
 	return absf(forest_delta.x) < absf(camera_delta.x)
+
+
+# 遠景が中景より奥側のスクロール係数で移動しているか確認する。
+func _distant_sky_scroll_is_slower() -> bool:
+	var camera := player.get_node_or_null("Camera2D") as Camera2D
+	if camera == null or distant_sky == null:
+		return false
+	var camera_delta := camera.get_screen_center_position() - _test_camera_origin
+	var sky_delta := distant_sky.position - _test_sky_origin
+	if absf(camera_delta.x) < 1.0:
+		return false
+	return absf(sky_delta.x) < absf(camera_delta.x) * (1.0 - MIDGROUND_SCROLL_FACTOR)
 
 
 # カメラの左端リミットを越えて、実際に画面がスクロールしたか確認する。
