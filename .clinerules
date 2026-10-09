@@ -41,6 +41,21 @@
 - 新規PR作成前に`origin/main`との差分・変更ファイル・重複コミットを確認する
 - 既存PRがMerged済みの場合に限り、最新の`origin/main`から新しいIssue・ブランチ・PRを作成する
 
+### PRマージ後のブランチ整理(必須)
+
+PRがGitHub上でマージ済みになったら、次の手順でローカル環境を整理する。
+
+1. PRの状態が`MERGED`であることを確認する。未マージのPRやレビュー中のPRでは実行しない
+2. 作業ブランチから`main`へ切り替える: `git switch main`
+3. リモートの参照を更新する: `git fetch origin --prune`
+4. `origin/main`をfast-forwardで取り込む: `git pull --ff-only origin main`
+5. マージ済みであることを確認した作業ブランチだけをローカルから削除する: `git branch -d issue/N-キーワード`
+6. 同じ作業ブランチをリモートから削除する: `git push origin --delete issue/N-キーワード`
+
+- `main`への切り替えと最新化が完了する前に作業ブランチを削除しない
+- 未マージのブランチ、他の作業中ブランチ、他の開発者が使用しているブランチは削除しない
+- 削除前に`git --no-pager branch -vv`とGitHub上のPR状態を確認する
+
 ## アセット管理
 
 - `assets/`はGit追跡対象外のローカル素材として扱う
