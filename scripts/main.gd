@@ -6,6 +6,7 @@ const GROUND_TOP := 600.0
 const KILL_Y := 720.0
 const MIDGROUND_SCROLL_FACTOR := 0.72
 const GROUND_TEXTURE_CROP_TOP := 200.0
+const GROUND_TEXTURE_SURFACE_OFFSET := -32.0
 
 # [x_start, x_end] の地面区間（上面は GROUND_TOP）。
 const GROUND_SEGS: Array = [
@@ -259,7 +260,7 @@ func _add_slab(pos: Vector2, size: Vector2, is_ground: bool) -> void:
 			float(GROUND_TEXTURE.get_width()),
 			float(GROUND_TEXTURE.get_height()) - GROUND_TEXTURE_CROP_TOP
 		)
-		ground_sprite.position = size * 0.5
+		ground_sprite.position = Vector2(size.x * 0.5, size.y * 0.5 + GROUND_TEXTURE_SURFACE_OFFSET)
 		ground_sprite.scale = Vector2(
 			size.x / float(GROUND_TEXTURE.get_width()),
 			size.y / (float(GROUND_TEXTURE.get_height()) - GROUND_TEXTURE_CROP_TOP)
@@ -714,7 +715,7 @@ func _ground_texture_ok() -> bool:
 			return false
 		if not is_equal_approx(ground_sprite.region_rect.position.y, GROUND_TEXTURE_CROP_TOP):
 			return false
-		if not is_equal_approx(ground_sprite.position.y, 100.0):
+		if not is_equal_approx(ground_sprite.position.y, 100.0 + GROUND_TEXTURE_SURFACE_OFFSET):
 			return false
 	return ground_count == GROUND_SEGS.size()
 
