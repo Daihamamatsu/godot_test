@@ -5,6 +5,7 @@ const SPAWN := Vector2(120, 479.5)
 const GROUND_TOP := 600.0
 const KILL_Y := 720.0
 const MIDGROUND_SCROLL_FACTOR := 0.72
+const DISTANT_SKY_SCALE := 0.33
 
 # [x_start, x_end] の地面区間（上面は GROUND_TOP）。
 const GROUND_SEGS: Array = [
@@ -69,6 +70,7 @@ var message_label: Label
 var sub_label: Label
 var hitbox_debug_label: Label
 var distant_sky: TextureRect
+var distant_sky_backdrop: ColorRect
 var midground_forest: Node2D
 var midground_camera_origin := Vector2.ZERO
 var hitbox_debug_enabled := false
@@ -128,6 +130,13 @@ func _build_background() -> void:
 	distant_sky_layer.name = "DistantSkyLayer"
 	distant_sky_layer.layer = -10
 	add_child(distant_sky_layer)
+
+	distant_sky_backdrop = ColorRect.new()
+	distant_sky_backdrop.name = "DistantSkyBackdrop"
+	distant_sky_backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	distant_sky_backdrop.color = Color("#2088e7")
+	distant_sky_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	distant_sky_layer.add_child(distant_sky_backdrop)
 
 	distant_sky = TextureRect.new()
 	distant_sky.name = "DistantSky"
@@ -194,8 +203,8 @@ func _layout_distant_sky() -> void:
 		return
 	var viewport_size := get_viewport_rect().size
 	var texture_size := Vector2(distant_sky.texture.get_width(), distant_sky.texture.get_height())
-	var scale := viewport_size.x / texture_size.x
-	# 画像上端を画面上端に合わせ、縦長画像の太陽が中央クロップで隠れないようにする。
+	var scale := DISTANT_SKY_SCALE
+	# 太陽が画面の約1/9の大きさで左上に収まるよう、遠景画像を縮小して配置する。
 	distant_sky.position = Vector2.ZERO
 	distant_sky.size = texture_size * scale
 
@@ -679,7 +688,7 @@ func _midground_forest_ok() -> bool:
 		and not first_tile.flip_h and second_tile.flip_h
 
 
-# 遠景の空画像が画面幅を覆い、画像上端が画面上端に固定されているか確認する。
+# 遠景の空画像が指定倍率で左上に配置されているか確認する。
 func _distant_sky_ok() -> bool:
 	if distant_sky == null or distant_sky.texture != DISTANT_SKY_TEXTURE:
 		return false
@@ -689,8 +698,10 @@ func _distant_sky_ok() -> bool:
 		and distant_sky.expand_mode == TextureRect.EXPAND_IGNORE_SIZE \
 		and is_zero_approx(distant_sky.position.x) \
 		and is_zero_approx(distant_sky.position.y) \
-		and is_equal_approx(rect_size.x, viewport_size.x) \
-		and rect_size.y >= viewport_size.y
+		and is_equal_approx(rect_size.x, DISTANT_SKY_TEXTURE.get_width() * DISTANT_SKY_SCALE) \
+		and is_equal_approx(rect_size.y, DISTANT_SKY_TEXTURE.get_height() * DISTANT_SKY_SCALE) \
+		and rect_size.x < viewport_size.x \
+		and rect_size.y < viewport_size.y
 
 
 # 中景画像の下端が、現在の画面下端まで届いているか確認する。
