@@ -44,8 +44,8 @@ const ENEMIES: Array = [
 const PLAYER_SCENE := preload("res://scenes/player.tscn")
 const ENEMY_SCENE := preload("res://scenes/enemy.tscn")
 const COIN_SCENE := preload("res://scenes/coin.tscn")
-const MIDGROUND_FOREST_TEXTURE := preload("res://assets/background/midground_forest.png")
-const DISTANT_SKY_TEXTURE := preload("res://assets/background/distant_sky.png")
+const MIDGROUND_FOREST_TEXTURE := preload("res://assets/background/tyuukei03.png")
+const DISTANT_SKY_TEXTURE := preload("res://assets/background/guruguruppoi_enkei02.png")
 # ローカル専用のBGM素材(Git管理外)。素材が無い場合は無音で続行する。
 const BGM_PATH := "res://assets/bgm/from_tohogenkyoku_silent_town01.mp3"
 const BGM_VOLUME_DB := -8.0
@@ -667,7 +667,7 @@ func _midground_forest_ok() -> bool:
 		and not first_tile.flip_h and second_tile.flip_h
 
 
-# 遠景の空画像が画面全体を覆い、アスペクト比維持のカバー表示になっているか確認する。
+# 遠景の空画像が画面全体を覆い、アスペクト比を維持して表示されているか確認する。
 func _distant_sky_ok() -> bool:
 	if distant_sky == null or distant_sky.texture != DISTANT_SKY_TEXTURE:
 		return false
