@@ -10,7 +10,8 @@ const MAX_FALL_SPEED := 800.0
 const MAX_HP := 100
 const STOMP_AP := 50
 const HITSTUN_TIME := 0.3
-const HITSTUN_KNOCKBACK := 180.0
+const HITSTUN_KNOCKBACK := 540.0
+const HITSTUN_LAUNCH := -360.0
 const HITSTUN_ALPHA := 0.45
 const DETECTION_DISTANCE := 180.0
 const DETECTION_VERTICAL_DISTANCE := 96.0
@@ -43,6 +44,7 @@ var dead := false
 var hp := MAX_HP
 var hit_stop_frames := 0
 var hit_reaction_frames := 0
+var hit_reaction_airborne := false
 var attack_frame := -1
 var attack_cooldown_frame := 0
 var death_frame := -1
@@ -81,13 +83,17 @@ func _physics_process(dt: float) -> void:
 	if hit_stop_frames > 0:
 		hit_stop_frames -= 1
 		return
-	if hit_reaction_frames > 0:
-		hit_reaction_frames -= 1
-		velocity = Vector2.ZERO
+	if hit_reaction_frames > 0 or hit_reaction_airborne:
+		if hit_reaction_frames > 0:
+			hit_reaction_frames -= 1
 		attack_frame = -1
 		attack_area.set_deferred("monitoring", false)
+		velocity.x = move_toward(velocity.x, 0.0, HITSTUN_KNOCKBACK * 5.0 * dt)
+		velocity.y = minf(velocity.y + GRAVITY * dt, MAX_FALL_SPEED)
+		move_and_slide()
 		_update_hit_reaction_visual()
-		if hit_reaction_frames <= 0:
+		if hit_reaction_frames <= 0 and is_on_floor():
+			hit_reaction_airborne = false
 			attack_cooldown_frame = 0
 		return
 	if death_frame >= 0:
@@ -224,7 +230,7 @@ func _handle_attack_area(area: Area2D) -> void:
 		return
 	_attack_hit_targets.append(target)
 	var hit_stop := attack_motion.hit_stop_frames if attack_motion != null else 8
-	target.take_damage(attack_motion.damage if attack_motion != null else ENEMY_ATTACK_AP, hit_stop, attack_motion.hit_reaction_frames if attack_motion != null else 12)
+	target.take_damage(attack_motion.damage if attack_motion != null else ENEMY_ATTACK_AP, hit_stop, attack_motion.hit_reaction_frames if attack_motion != null else 12, self)
 	apply_hit_stop(hit_stop)
 	Sfx.play("hit")
 
@@ -255,7 +261,7 @@ func _on_hurt_body_entered(body: Node2D) -> void:
 
 
 func _on_hurt_area_entered(area: Area2D) -> void:
-	if dead or hit_reaction_frames > 0 or not area.is_in_group("player_attack"):
+	if dead or hit_reaction_frames > 0 or hit_reaction_airborne or not area.is_in_group("player_attack"):
 		return
 	var attacker := area.get_parent()
 	if not attacker.is_in_group("player") or not attacker.has_method("consume_attack_hit"):
@@ -268,7 +274,7 @@ func _on_hurt_area_entered(area: Area2D) -> void:
 
 
 func receive_attack_damage(ap: int, attacker: Node2D) -> void:
-	if dead or hit_reaction_frames > 0:
+	if dead or hit_reaction_frames > 0 or hit_reaction_airborne:
 		return
 	var attacker_delta_x := attacker.global_position.x - global_position.x
 	if not is_zero_approx(attacker_delta_x):
@@ -291,8 +297,9 @@ func receive_attack_damage(ap: int, attacker: Node2D) -> void:
 	if is_zero_approx(knockback_dir):
 		knockback_dir = -float(int(attacker.get("facing")))
 	velocity.x = knockback_dir * HITSTUN_KNOCKBACK
-	velocity.y = -70.0
+	velocity.y = HITSTUN_LAUNCH
 	hit_reaction_frames = maxi(hit_reaction_frames, hurt_frames)
+	hit_reaction_airborne = true
 	modulate.a = HITSTUN_ALPHA
 
 
@@ -327,6 +334,7 @@ func _begin_death() -> void:
 	death_frame = 0
 	attack_frame = -1
 	attack_cooldown_frame = 0
+	hit_reaction_airborne = false
 	attack_area.set_deferred("monitoring", false)
 	normal_sprite.visible = false
 	attack_sprite.visible = false
