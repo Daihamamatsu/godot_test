@@ -5,6 +5,7 @@ const SPAWN := Vector2(120, 479.5)
 const GROUND_TOP := 600.0
 const KILL_Y := 720.0
 const MIDGROUND_SCROLL_FACTOR := 0.72
+const GROUND_TEXTURE_CROP_TOP := 200.0
 
 # [x_start, x_end] の地面区間（上面は GROUND_TOP）。
 const GROUND_SEGS: Array = [
@@ -251,10 +252,17 @@ func _add_slab(pos: Vector2, size: Vector2, is_ground: bool) -> void:
 	if is_ground:
 		var ground_sprite := Sprite2D.new()
 		ground_sprite.texture = GROUND_TEXTURE
+		ground_sprite.region_enabled = true
+		ground_sprite.region_rect = Rect2(
+			0.0,
+			GROUND_TEXTURE_CROP_TOP,
+			float(GROUND_TEXTURE.get_width()),
+			float(GROUND_TEXTURE.get_height()) - GROUND_TEXTURE_CROP_TOP
+		)
 		ground_sprite.position = size * 0.5
 		ground_sprite.scale = Vector2(
 			size.x / float(GROUND_TEXTURE.get_width()),
-			size.y / float(GROUND_TEXTURE.get_height())
+			size.y / (float(GROUND_TEXTURE.get_height()) - GROUND_TEXTURE_CROP_TOP)
 		)
 		ground_sprite.name = "GroundTexture"
 		body.add_child(ground_sprite)
@@ -701,6 +709,12 @@ func _ground_texture_ok() -> bool:
 			continue
 		ground_count += 1
 		if ground_sprite.texture != GROUND_TEXTURE:
+			return false
+		if not ground_sprite.region_enabled:
+			return false
+		if not is_equal_approx(ground_sprite.region_rect.position.y, GROUND_TEXTURE_CROP_TOP):
+			return false
+		if not is_equal_approx(ground_sprite.position.y, 100.0):
 			return false
 	return ground_count == GROUND_SEGS.size()
 
