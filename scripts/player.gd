@@ -19,6 +19,9 @@ const JUMP_BUFFER_TIME := 0.12
 const KILL_Y := 720.0
 const MAX_HP := 100
 const ATTACK_AP := 25
+const HITSTUN_KNOCKBACK := 180.0
+const HITSTUN_LAUNCH := -180.0
+const HITSTUN_FRICTION := 900.0
 const ATTACK_FPS := 24.0
 const ATTACK_FRAME_COUNT := 11
 const ATTACK_ACTIVE_START := 5
@@ -93,13 +96,15 @@ func _physics_process(dt: float) -> void:
 		return
 	if hit_reaction_frames > 0:
 		hit_reaction_frames -= 1
-		velocity = Vector2.ZERO
 		_jump_buffer = 0.0
 		_finish_attack()
 		walk_sprite.stop()
 		walk_sprite.visible = true
 		attack_sprite.visible = false
 		visual.modulate.a = 0.45
+		velocity.x = move_toward(velocity.x, 0.0, HITSTUN_FRICTION * dt)
+		velocity.y = minf(velocity.y + FALL_GRAVITY * dt, MAX_FALL_SPEED)
+		move_and_slide()
 		return
 	if state == State.DYING:
 		# その場で転がる(落下中もレベルとの衝突は継続する)。
@@ -223,13 +228,18 @@ func _die(from_pit: bool = false) -> void:
 	tw.tween_callback(hide)
 
 
-func take_damage(ap: int, hit_stop: int = 0, hurt_frames: int = 0) -> void:
+func take_damage(ap: int, hit_stop: int = 0, hurt_frames: int = 0, attacker: Node2D = null) -> void:
 	if invincible > 0.0 or state != State.ALIVE:
 		return
 	apply_hit_stop(hit_stop)
 	_finish_attack()
 	hit_reaction_frames = maxi(hit_reaction_frames, hurt_frames)
-	velocity = Vector2.ZERO
+	var knockback_dir := -float(facing)
+	if attacker != null:
+		knockback_dir = signf(global_position.x - attacker.global_position.x)
+		if is_zero_approx(knockback_dir):
+			knockback_dir = -float(int(attacker.get("dir"))) if attacker.get("dir") != null else -float(int(attacker.get("facing")))
+	velocity = Vector2(knockback_dir * HITSTUN_KNOCKBACK, HITSTUN_LAUNCH)
 	hp = maxi(hp - maxi(ap, 0), 0)
 	hp_changed.emit(hp, MAX_HP)
 	Sfx.play("hurt")
