@@ -46,6 +46,7 @@ const ENEMY_SCENE := preload("res://scenes/enemy.tscn")
 const COIN_SCENE := preload("res://scenes/coin.tscn")
 const MIDGROUND_FOREST_TEXTURE := preload("res://assets/background/tyuukei03.png")
 const DISTANT_SKY_TEXTURE := preload("res://assets/background/guruguruppoi_enkei02.png")
+const GROUND_TEXTURE := preload("res://assets/ground/jimen01.png")
 # ローカル専用のBGM素材(Git管理外)。素材が無い場合は無音で続行する。
 const BGM_PATH := "res://assets/bgm/from_tohogenkyoku_silent_town01.mp3"
 const BGM_VOLUME_DB := -8.0
@@ -247,17 +248,26 @@ func _add_slab(pos: Vector2, size: Vector2, is_ground: bool) -> void:
 	cs.position = size * 0.5
 	body.add_child(cs)
 
-	var dirt_color := Color(0.45, 0.3, 0.16) if is_ground else Color(0.6, 0.42, 0.26)
-	var dirt := Polygon2D.new()
-	dirt.polygon = PackedVector2Array([Vector2.ZERO, Vector2(size.x, 0), Vector2(size.x, size.y), Vector2(0, size.y)])
-	dirt.color = dirt_color
-	body.add_child(dirt)
+	if is_ground:
+		var ground_sprite := Sprite2D.new()
+		ground_sprite.texture = GROUND_TEXTURE
+		ground_sprite.position = size * 0.5
+		ground_sprite.scale = Vector2(
+			size.x / float(GROUND_TEXTURE.get_width()),
+			size.y / float(GROUND_TEXTURE.get_height())
+		)
+		ground_sprite.name = "GroundTexture"
+		body.add_child(ground_sprite)
+	else:
+		var dirt := Polygon2D.new()
+		dirt.polygon = PackedVector2Array([Vector2.ZERO, Vector2(size.x, 0), Vector2(size.x, size.y), Vector2(0, size.y)])
+		dirt.color = Color(0.6, 0.42, 0.26)
+		body.add_child(dirt)
 
-	var top_color := Color(0.3, 0.72, 0.32) if is_ground else Color(0.78, 0.6, 0.38)
-	var top := Polygon2D.new()
-	top.polygon = PackedVector2Array([Vector2.ZERO, Vector2(size.x, 0), Vector2(size.x, 8), Vector2(0, 8)])
-	top.color = top_color
-	body.add_child(top)
+		var top := Polygon2D.new()
+		top.polygon = PackedVector2Array([Vector2.ZERO, Vector2(size.x, 0), Vector2(size.x, 8), Vector2(0, 8)])
+		top.color = Color(0.78, 0.6, 0.38)
+		body.add_child(top)
 
 	world.add_child(body)
 
@@ -571,6 +581,7 @@ func _run_test_step() -> void:
 			_check(_midground_forest_ok(), "midground-forest")
 			_check(_midground_reaches_screen_bottom(), "midground-screen-bottom")
 			_check(_distant_sky_ok(), "distant-sky")
+			_check(_ground_texture_ok(), "ground-texture")
 			_test_camera_origin = (player.get_node("Camera2D") as Camera2D).get_screen_center_position()
 			_test_forest_origin = midground_forest.position
 			_test_forest_y_origin = midground_forest.position.y
@@ -677,6 +688,21 @@ func _distant_sky_ok() -> bool:
 		and distant_sky.expand_mode == TextureRect.EXPAND_IGNORE_SIZE \
 		and is_equal_approx(rect_size.x, viewport_size.x) \
 		and is_equal_approx(rect_size.y, viewport_size.y)
+
+
+# すべての地面区間に指定画像が表示されているか確認する。
+func _ground_texture_ok() -> bool:
+	var ground_count := 0
+	for body in world.get_children():
+		if not body is StaticBody2D:
+			continue
+		var ground_sprite := body.get_node_or_null("GroundTexture") as Sprite2D
+		if ground_sprite == null:
+			continue
+		ground_count += 1
+		if ground_sprite.texture != GROUND_TEXTURE:
+			return false
+	return ground_count == GROUND_SEGS.size()
 
 
 # 中景画像の下端が、現在の画面下端まで届いているか確認する。
