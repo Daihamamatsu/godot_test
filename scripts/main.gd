@@ -5,12 +5,14 @@ const SPAWN := Vector2(120, 479.5)
 const GROUND_TOP := 600.0
 const KILL_Y := 720.0
 const MIDGROUND_SCROLL_FACTOR := 0.72
+const GROUND_GRASS_TEXTURE := preload("res://assets/background/ground/grass_40x40_seamless.png")
+const GROUND_SOIL_TEXTURE := preload("res://assets/background/ground/soil_40x40_seamless.png")
 
 # [x_start, x_end] の地面区間（上面は GROUND_TOP）。
 const GROUND_SEGS: Array = [
 	[0, 1000],
 	[1140, 2100],
-	[2260, 3000],
+	[2260, 3020],
 	[3340, 4400],
 ]
 # [x, y_top, width, height] のブロック、浮遊足場、階段。
@@ -247,19 +249,23 @@ func _add_slab(pos: Vector2, size: Vector2, is_ground: bool) -> void:
 	cs.position = size * 0.5
 	body.add_child(cs)
 
-	var dirt_color := Color(0.45, 0.3, 0.16) if is_ground else Color(0.6, 0.42, 0.26)
-	var dirt := Polygon2D.new()
-	dirt.polygon = PackedVector2Array([Vector2.ZERO, Vector2(size.x, 0), Vector2(size.x, size.y), Vector2(0, size.y)])
-	dirt.color = dirt_color
-	body.add_child(dirt)
-
-	var top_color := Color(0.3, 0.72, 0.32) if is_ground else Color(0.78, 0.6, 0.38)
-	var top := Polygon2D.new()
-	top.polygon = PackedVector2Array([Vector2.ZERO, Vector2(size.x, 0), Vector2(size.x, 8), Vector2(0, 8)])
-	top.color = top_color
-	body.add_child(top)
+	var grass_height := minf(40.0, size.y)
+	_add_tiled_texture(body, GROUND_GRASS_TEXTURE, Rect2(0.0, 0.0, size.x, grass_height))
+	if size.y > grass_height:
+		_add_tiled_texture(body, GROUND_SOIL_TEXTURE, Rect2(0.0, grass_height, size.x, size.y - grass_height))
 
 	world.add_child(body)
+
+
+func _add_tiled_texture(parent: Node2D, texture: Texture2D, rect: Rect2) -> void:
+	var tile := Sprite2D.new()
+	tile.texture = texture
+	tile.centered = false
+	tile.position = rect.position
+	tile.region_enabled = true
+	tile.region_rect = Rect2(0.0, 0.0, rect.size.x, rect.size.y)
+	tile.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	parent.add_child(tile)
 
 
 func _add_wall(pos: Vector2, size: Vector2) -> void:
