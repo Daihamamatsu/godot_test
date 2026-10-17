@@ -44,8 +44,8 @@ const ENEMIES: Array = [
 const PLAYER_SCENE := preload("res://scenes/player.tscn")
 const ENEMY_SCENE := preload("res://scenes/enemy.tscn")
 const COIN_SCENE := preload("res://scenes/coin.tscn")
-const MIDGROUND_FOREST_TEXTURE := preload("res://assets/background/midground_forest.png")
-const DISTANT_SKY_TEXTURE := preload("res://assets/background/distant_sky.png")
+const MIDGROUND_FOREST_TEXTURE := preload("res://assets/background/tyuukei03.png")
+const DISTANT_SKY_TEXTURE := preload("res://assets/background/guruguruppoi_aozora.png")
 # ローカル専用のBGM素材(Git管理外)。素材が無い場合は無音で続行する。
 const BGM_PATH := "res://assets/bgm/from_tohogenkyoku_silent_town01.mp3"
 const BGM_VOLUME_DB := -8.0
@@ -131,12 +131,13 @@ func _build_background() -> void:
 
 	distant_sky = TextureRect.new()
 	distant_sky.name = "DistantSky"
-	distant_sky.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	distant_sky.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 	distant_sky.texture = DISTANT_SKY_TEXTURE
 	distant_sky.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	distant_sky.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	distant_sky.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
 	distant_sky.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	distant_sky_layer.add_child(distant_sky)
+	_layout_distant_sky()
 
 	var parallax := ParallaxBackground.new()
 	parallax.name = "ParallaxBackground"
@@ -186,6 +187,17 @@ func _add_midground_forest_tiles() -> void:
 		forest_tile.flip_h = i % 2 == 1
 		forest_tile.name = "ForestTile%d" % i
 		midground_forest.add_child(forest_tile)
+
+
+func _layout_distant_sky() -> void:
+	if distant_sky == null or distant_sky.texture == null:
+		return
+	var viewport_size := get_viewport_rect().size
+	var texture_size := Vector2(distant_sky.texture.get_width(), distant_sky.texture.get_height())
+	var scale := viewport_size.x / texture_size.x
+	# 画像上端を画面上端に合わせ、縦長画像の太陽が中央クロップで隠れないようにする。
+	distant_sky.position = Vector2.ZERO
+	distant_sky.size = texture_size * scale
 
 
 func _fit_midground_to_screen_bottom(camera: Camera2D) -> void:
@@ -667,16 +679,18 @@ func _midground_forest_ok() -> bool:
 		and not first_tile.flip_h and second_tile.flip_h
 
 
-# 遠景の空画像が画面全体を覆い、アスペクト比維持のカバー表示になっているか確認する。
+# 遠景の空画像が画面幅を覆い、画像上端が画面上端に固定されているか確認する。
 func _distant_sky_ok() -> bool:
 	if distant_sky == null or distant_sky.texture != DISTANT_SKY_TEXTURE:
 		return false
 	var viewport_size := get_viewport_rect().size
 	var rect_size := distant_sky.size
-	return distant_sky.stretch_mode == TextureRect.STRETCH_KEEP_ASPECT_COVERED \
+	return distant_sky.stretch_mode == TextureRect.STRETCH_KEEP_ASPECT \
 		and distant_sky.expand_mode == TextureRect.EXPAND_IGNORE_SIZE \
+		and is_zero_approx(distant_sky.position.x) \
+		and is_zero_approx(distant_sky.position.y) \
 		and is_equal_approx(rect_size.x, viewport_size.x) \
-		and is_equal_approx(rect_size.y, viewport_size.y)
+		and rect_size.y >= viewport_size.y
 
 
 # 中景画像の下端が、現在の画面下端まで届いているか確認する。
